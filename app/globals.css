@@ -1,0 +1,171 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Убеждаемся, что элементы кликабельны */
+* {
+  pointer-events: auto !important;
+}
+
+button, [role="button"], .clickable {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* Убираем все возможные блокировки */
+body, html {
+  pointer-events: auto !important;
+  user-select: auto !important;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+/* Custom Roly-Poly color palettes for light and dark themes */
+:root {
+  /* Light Theme - Based on specification */
+  --background: #c7cbcb; /* Very light gray-blue */
+  --foreground: #2b2422; /* Dark gray graphite */
+  --card: rgba(109, 115, 119, 0.12); /* Charcoal gray with transparency */
+  --card-foreground: #2b2422;
+  --popover: #c7cbcb;
+  --popover-foreground: #2b2422;
+  --primary: #dc6027; /* Accent orange */
+  --primary-foreground: #c7cbcb;
+  --secondary: rgba(109, 115, 119, 0.15);
+  --secondary-foreground: #2b2422;
+  --muted: #a1a3a4; /* Light gray for dividers */
+  --muted-foreground: #4c4b4b; /* Medium gray for secondary text */
+  --accent: #dc6027;
+  --accent-foreground: #c7cbcb;
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: #a1a3a4;
+  --input: rgba(109, 115, 119, 0.15);
+  --ring: #dc6027;
+  --chart-1: #dc6027;
+  --chart-2: #6d7377;
+  --chart-3: #4c4b4b;
+  --chart-4: #a1a3a4;
+  --chart-5: #2b2422;
+  --radius: 1rem;
+  --sidebar: #c7cbcb;
+  --sidebar-foreground: #2b2422;
+  --sidebar-primary: #dc6027;
+  --sidebar-primary-foreground: #c7cbcb;
+  --sidebar-accent: rgba(109, 115, 119, 0.12);
+  --sidebar-accent-foreground: #2b2422;
+  --sidebar-border: #a1a3a4;
+  --sidebar-ring: #dc6027;
+}
+
+.dark {
+  /* Dark Theme - Based on specification */
+  --background: #090218; /* Almost black with purple tint */
+  --foreground: #b5a8dc; /* Light lavender */
+  --card: #220c41; /* Dark violet for containers */
+  --card-foreground: #b5a8dc;
+  --popover: #220c41;
+  --popover-foreground: #b5a8dc;
+  --primary: #674bc9; /* Bright violet-blue accent */
+  --primary-foreground: #b5a8dc;
+  --secondary: #452f78; /* Deep purple for dividers */
+  --secondary-foreground: #b5a8dc;
+  --muted: #452f78;
+  --muted-foreground: #7d7099; /* Gray with lilac tone */
+  --accent: #674bc9;
+  --accent-foreground: #b5a8dc;
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: #452f78;
+  --input: #220c41;
+  --ring: #674bc9;
+  --chart-1: #674bc9;
+  --chart-2: #452f78;
+  --chart-3: #7d7099;
+  --chart-4: #b5a8dc;
+  --chart-5: #220c41;
+  --sidebar: #090218;
+  --sidebar-foreground: #b5a8dc;
+  --sidebar-primary: #674bc9;
+  --sidebar-primary-foreground: #b5a8dc;
+  --sidebar-accent: #220c41;
+  --sidebar-accent-foreground: #b5a8dc;
+  --sidebar-border: #452f78;
+  --sidebar-ring: #674bc9;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body {
+    @apply bg-background text-foreground;
+    /* Disable text selection globally to prevent blue highlighting on mobile long-press */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    /* Disable swipe-back/forward gesture */
+    overscroll-behavior-x: none;
+    -ms-scroll-chaining: none;
+    touch-action: pan-y;
+  }
+  /* Allow text selection only in input fields and textareas for editing */
+  input,
+  textarea {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

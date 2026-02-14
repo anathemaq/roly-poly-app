@@ -1,0 +1,1141 @@
+2026-02-14T18:07:51.826Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-sq424oiobn"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-zldrvp3f6m"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function StartScreen} searchParams={{}} params={{}}>
+                                      <StartScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="fixed inset-0 bg-background flex flex-col overflow-hidden"
+                                          style={{overscrollBehavior:"none",touchAction:"none"}}
+-                                         data-orchid-ref="ref-alxjvj2m6d"
+                                        >
+                                          <header
+                                            className="px-3 py-2 flex justify-end items-center flex-shrink-0"
+-                                           data-orchid-ref="ref-6d69717d23"
+                                          >
+                                            <ThemeToggle>
+                                              <Button variant="ghost" size="icon" onClick={function toggleTheme} ...>
+                                                <button
+                                                  data-slot="button"
+                                                  className={"inline-flex items-center justify-center gap-2 whitespac..."}
+                                                  onClick={function toggleTheme}
+-                                                 data-orchid-ref="ref-dny635vwig"
+                                                >
+                                                  <Moon className="h-5 w-5">
+                                                    <_c ref={null} iconNode={[...]} className="lucide-moo...">
+                                                      <svg
+                                                        ref={null}
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        width={24}
+                             ... [truncated]
+2026-02-14T18:07:51.861Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:2, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-sq424oiobn"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-zldrvp3f6m"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function StartScreen} searchParams={{}} params={{}}>
+                                      <StartScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="fixed inset-0 bg-background flex flex-col overflow-hidden"
+                                          style={{overscrollBehavior:"none",touchAction:"none"}}
+-                                         data-orchid-ref="ref-alxjvj2m6d"
+                                        >
+                                          <header
+                                            className="px-3 py-2 flex justify-end items-center flex-shrink-0"
+-                                           data-orchid-ref="ref-6d69717d23"
+                                          >
+                                            <ThemeToggle>
+                                              <Button variant="ghost" size="icon" onClick={function toggleTheme} ...>
+                                                <button
+                                                  data-slot="button"
+                                                  className={"inline-flex items-center justify-center gap-2 whitespac..."}
+                                                  onClick={function toggleTheme}
+-                                                 data-orchid-ref="ref-dny635vwig"
+                                                >
+                                                  <Moon className="h-5 w-5">
+                                                    <_c ref={null} iconNode={[...]} className="lucide-moo...">
+                                                      <svg
+                                                        ref={null}
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        width={24}
+                             ... [truncated]
+2026-02-14T18:11:06.037Z [console][error] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree.
+2026-02-14T18:07:51.827Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-sq424oiobn"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-zldrvp3f6m"
+                                >
+                                  ......
+2026-02-14T18:07:51.861Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:2, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-sq424oiobn"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-zldrvp3f6m"
+                                >
+                                  ......
+2026-02-14T20:03:58.631Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-fnbqv0k559"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-st2cf82qwu"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function TimelineScreen} searchParams={{}} params={{}}>
+                                      <TimelineScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="min-h-screen bg-background flex items-center justify-center p-6"
+-                                         data-orchid-ref="ref-jvjz8y66zh"
+                                        >
+                                          <Card className="p-8 text-c...">
+                                            <div
+                                              data-slot="card"
+                                              className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl b..."
+-                                             data-orchid-ref="ref-yhw72qgyg8"
+                                            >
+                                              <Calendar className="h-12 w-12 ...">
+                                                <_c ref={null} iconNode={[...]} className="lucide-cal...">
+                                                  <svg
+                                                    ref={null}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width={24}
+                                                    height={24}
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-calen... [truncated]
+2026-02-14T20:03:58.642Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:2, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-fnbqv0k559"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-st2cf82qwu"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function TimelineScreen} searchParams={{}} params={{}}>
+                                      <TimelineScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="min-h-screen bg-background flex items-center justify-center p-6"
+-                                         data-orchid-ref="ref-jvjz8y66zh"
+                                        >
+                                          <Card className="p-8 text-c...">
+                                            <div
+                                              data-slot="card"
+                                              className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl b..."
+-                                             data-orchid-ref="ref-yhw72qgyg8"
+                                            >
+                                              <Calendar className="h-12 w-12 ...">
+                                                <_c ref={null} iconNode={[...]} className="lucide-cal...">
+                                                  <svg
+                                                    ref={null}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width={24}
+                                                    height={24}
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-calen... [truncated]
+2026-02-14T20:03:58.658Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:3, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-fnbqv0k559"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-st2cf82qwu"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function TimelineScreen} searchParams={{}} params={{}}>
+                                      <TimelineScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="min-h-screen bg-background flex items-center justify-center p-6"
+-                                         data-orchid-ref="ref-jvjz8y66zh"
+                                        >
+                                          <Card className="p-8 text-c...">
+                                            <div
+                                              data-slot="card"
+                                              className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl b..."
+-                                             data-orchid-ref="ref-yhw72qgyg8"
+                                            >
+                                              <Calendar className="h-12 w-12 ...">
+                                                <_c ref={null} iconNode={[...]} className="lucide-cal...">
+                                                  <svg
+                                                    ref={null}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width={24}
+                                                    height={24}
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-calen... [truncated]
+2026-02-14T20:03:58.720Z [console][error] Blocked call to navigator.vibrate because user hasn't tapped on the frame or any embedded frame yet: https://www.chromestatus.com/feature/5644273861001216.
+2026-02-14T20:03:58.631Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-fnbqv0k559"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-st2cf82qwu"
+                                ...
+2026-02-14T20:03:58.642Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:2, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-fnbqv0k559"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-st2cf82qwu"
+                                ...
+2026-02-14T20:03:58.658Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:3, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-fnbqv0k559"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-st2cf82qwu"
+                                ...
+2026-02-14T20:14:03.366Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function TimelineScreen} searchParams={{}} params={{}}>
+                                      <TimelineScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="min-h-screen bg-background flex items-center justify-center p-6"
+-                                         data-orchid-ref="ref-8gwt3w8ptp"
+                                        >
+                                          <Card className="p-8 text-c...">
+                                            <div
+                                              data-slot="card"
+                                              className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl b..."
+-                                             data-orchid-ref="ref-3iiqnu8ine"
+                                            >
+                                              <Calendar className="h-12 w-12 ...">
+                                                <_c ref={null} iconNode={[...]} className="lucide-cal...">
+                                                  <svg
+                                                    ref={null}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width={24}
+                                                    height={24}
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-calen... [truncated]
+2026-02-14T20:14:03.390Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:2, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function TimelineScreen} searchParams={{}} params={{}}>
+                                      <TimelineScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="min-h-screen bg-background flex items-center justify-center p-6"
+-                                         data-orchid-ref="ref-8gwt3w8ptp"
+                                        >
+                                          <Card className="p-8 text-c...">
+                                            <div
+                                              data-slot="card"
+                                              className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl b..."
+-                                             data-orchid-ref="ref-3iiqnu8ine"
+                                            >
+                                              <Calendar className="h-12 w-12 ...">
+                                                <_c ref={null} iconNode={[...]} className="lucide-cal...">
+                                                  <svg
+                                                    ref={null}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width={24}
+                                                    height={24}
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-calen... [truncated]
+2026-02-14T20:14:03.402Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:3, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function TimelineScreen} searchParams={{}} params={{}}>
+                                      <TimelineScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="min-h-screen bg-background flex items-center justify-center p-6"
+-                                         data-orchid-ref="ref-8gwt3w8ptp"
+                                        >
+                                          <Card className="p-8 text-c...">
+                                            <div
+                                              data-slot="card"
+                                              className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl b..."
+-                                             data-orchid-ref="ref-3iiqnu8ine"
+                                            >
+                                              <Calendar className="h-12 w-12 ...">
+                                                <_c ref={null} iconNode={[...]} className="lucide-cal...">
+                                                  <svg
+                                                    ref={null}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width={24}
+                                                    height={24}
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-calen... [truncated]
+2026-02-14T20:14:03.413Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:4, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function TimelineScreen} searchParams={{}} params={{}}>
+                                      <TimelineScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="min-h-screen bg-background flex items-center justify-center p-6"
+-                                         data-orchid-ref="ref-8gwt3w8ptp"
+                                        >
+                                          <Card className="p-8 text-c...">
+                                            <div
+                                              data-slot="card"
+                                              className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl b..."
+-                                             data-orchid-ref="ref-3iiqnu8ine"
+                                            >
+                                              <Calendar className="h-12 w-12 ...">
+                                                <_c ref={null} iconNode={[...]} className="lucide-cal...">
+                                                  <svg
+                                                    ref={null}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width={24}
+                                                    height={24}
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-calen... [truncated]
+2026-02-14T20:14:03.426Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:5, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function TimelineScreen} searchParams={{}} params={{}}>
+                                      <TimelineScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="min-h-screen bg-background flex items-center justify-center p-6"
+-                                         data-orchid-ref="ref-8gwt3w8ptp"
+                                        >
+                                          <Card className="p-8 text-c...">
+                                            <div
+                                              data-slot="card"
+                                              className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl b..."
+-                                             data-orchid-ref="ref-3iiqnu8ine"
+                                            >
+                                              <Calendar className="h-12 w-12 ...">
+                                                <_c ref={null} iconNode={[...]} className="lucide-cal...">
+                                                  <svg
+                                                    ref={null}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width={24}
+                                                    height={24}
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-calen... [truncated]
+2026-02-14T20:14:03.444Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:6, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                >
+                                  ...
+                                    <ClientPageRoot Component={function TimelineScreen} searchParams={{}} params={{}}>
+                                      <TimelineScreen params={Promise} searchParams={Promise}>
+                                        <div
+                                          className="min-h-screen bg-background flex items-center justify-center p-6"
+-                                         data-orchid-ref="ref-8gwt3w8ptp"
+                                        >
+                                          <Card className="p-8 text-c...">
+                                            <div
+                                              data-slot="card"
+                                              className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl b..."
+-                                             data-orchid-ref="ref-3iiqnu8ine"
+                                            >
+                                              <Calendar className="h-12 w-12 ...">
+                                                <_c ref={null} iconNode={[...]} className="lucide-cal...">
+                                                  <svg
+                                                    ref={null}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width={24}
+                                                    height={24}
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-calen... [truncated]
+2026-02-14T20:14:03.514Z [console][error] Blocked call to navigator.vibrate because user hasn't tapped on the frame or any embedded frame yet: https://www.chromestatus.com/feature/5644273861001216.
+2026-02-14T20:14:03.366Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                ...
+2026-02-14T20:14:03.390Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:2, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                ...
+2026-02-14T20:14:03.401Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:3, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                ...
+2026-02-14T20:14:03.413Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:4, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                ...
+2026-02-14T20:14:03.426Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:5, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                ...
+2026-02-14T20:14:03.443Z [console][error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlay state={{nextId:6, ...}} globalError={[...]}>
+        <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+          <ReplaySsrOnlyErrors>
+          <DevRootHTTPAccessFallbackBoundary>
+            <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+              <HTTPAccessFallbackErrorBoundary pathname="/timeline" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                <RedirectBoundary>
+                  <RedirectErrorBoundary router={{...}}>
+                    <Head>
+                    <link>
+                    <RootLayout>
+                      <html lang="ru">
+                        <head>
+                        <body className="font-sans ...">
+                          <Suspense fallback={<div>}>
+                            <DayProvider>
+                              <div
+                                className="min-h-screen bg-background max-w-md mx-auto relative"
+-                               data-orchid-ref="ref-yyjz667p3n"
+                              >
+                                <div
+                                  className="pb-16"
+-                                 data-orchid-ref="ref-idyr8ruach"
+                                ...
