@@ -192,13 +192,15 @@ export function DayProvider({ children }: { children: ReactNode }) {
     saveToStorage(STORAGE_KEYS.pomodoroSessionsDate, new Date().toDateString())
   }, [pomodoroCompletedSessions, isHydrated])
 
-  // --- Activity completion notification ---
+  // --- Activity completion notification + auto-complete ---
   const notifiedActivitiesRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (currentActivities.length === 0) return
 
     const check = () => {
       const now = new Date()
+      const expiredIds: string[] = []
+
       currentActivities.forEach((activity) => {
         if (
           !activity.completed &&
@@ -207,12 +209,46 @@ export function DayProvider({ children }: { children: ReactNode }) {
           !notifiedActivitiesRef.current.has(activity.id)
         ) {
           notifiedActivitiesRef.current.add(activity.id)
+          expiredIds.push(activity.id)
           sendNotification(
             "Время вышло!",
             `Активность "${activity.name}" завершена`
           )
         }
       })
+
+      // Auto-mark expired activities as completed
+      if (expiredIds.length > 0) {
+        setCurrentActivities((prev) => {
+          const updated = [...prev]
+          let changed = false
+
+          for (const id of expiredIds) {
+            const idx = updated.findIndex((a) => a.id === id)
+            if (idx !== -1 && !updated[idx].completed) {
+              updated[idx] = { ...updated[idx], completed: true }
+              changed = true
+            }
+          }
+
+          if (!changed) return prev
+
+          // Recalculate start/end times for remaining incomplete activities
+          const now = new Date()
+          let nextStart = now
+          for (let i = 0; i < updated.length; i++) {
+            if (updated[i].completed) continue
+            updated[i] = {
+              ...updated[i],
+              startTime: new Date(nextStart),
+              endTime: new Date(nextStart.getTime() + updated[i].duration * 60000),
+            }
+            nextStart = updated[i].endTime!
+          }
+
+          return updated
+        })
+      }
     }
 
     check()
