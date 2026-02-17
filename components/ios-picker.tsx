@@ -19,10 +19,8 @@ const VISIBLE_COUNT = 5
 const CENTER = Math.floor(VISIBLE_COUNT / 2)
 
 // iOS-style deceleration physics
-const DECELERATION = 0.992 // per-ms multiplier
-const MIN_VELOCITY = 0.08 // px/ms threshold to enter snap phase
-const SNAP_STIFFNESS = 0.08 // spring pull towards target (lower = softer)
-const SNAP_FRICTION = 0.85 // velocity damping per frame in snap mode (lower = stops faster)
+const DECELERATION = 0.992 // per-ms friction multiplier
+const MIN_VELOCITY = 0.08 // px/ms — below this, stop momentum and snap
 
 /**
  * Zero-rerender iOS-style wheel picker.
@@ -33,13 +31,17 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
   const itemsRef = useRef<(HTMLDivElement | null)[]>([])
 
   // --- Animation state (never triggers React render) ---
-  const offsetRef = useRef(0) // current scroll offset in px (positive = scrolled down)
+  const offsetRef = useRef(0) // current scroll offset in px
   const velocityRef = useRef(0) // px per ms
   const rafRef = useRef<number>(0)
   const isDraggingRef = useRef(false)
   const lastYRef = useRef(0)
   const lastTimeRef = useRef(0)
   const lastReportedRef = useRef(-1)
+  const pointerHistoryRef = useRef<{ y: number; t: number }[]>([])
+  // Snap target (absolute, unwrapped offset to animate towards)
+  const snapTargetRef = useRef<number | null>(null)
+  const phaseRef = useRef<"momentum" | "snap" | "idle">("idle")
   const totalHeight = options.length * ITEM_HEIGHT
 
   // Sync initial value
@@ -100,57 +102,65 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
     }
   }, [options, wrapOffset, onChange])
 
-  // --- Momentum + snap animation loop ---
+  // Find nearest snap point relative to current unwrapped offset
+  const findSnapTarget = useCallback(
+    (offset: number) => {
+      // Work in unwrapped space: find nearest multiple of ITEM_HEIGHT
+      const nearestIdx = Math.round(offset / ITEM_HEIGHT)
+      return nearestIdx * ITEM_HEIGHT
+    },
+    [],
+  )
+
+  // --- Animation loop ---
   const animate = useCallback(() => {
     if (isDraggingRef.current) return
 
     const now = performance.now()
-    const dt = Math.min(now - lastTimeRef.current, 32) // cap at ~30fps min
+    const dt = Math.min(now - lastTimeRef.current, 32)
     lastTimeRef.current = now
 
-    let v = velocityRef.current
-
-    if (Math.abs(v) > MIN_VELOCITY) {
-      // Momentum phase: apply velocity then decelerate
+    if (phaseRef.current === "momentum") {
+      let v = velocityRef.current
       v *= Math.pow(DECELERATION, dt)
       offsetRef.current += v * dt
       velocityRef.current = v
 
+      if (Math.abs(v) < MIN_VELOCITY) {
+        // Transition to snap: compute target from current position
+        phaseRef.current = "snap"
+        snapTargetRef.current = findSnapTarget(offsetRef.current)
+        velocityRef.current = 0
+      }
+
       paint()
       rafRef.current = requestAnimationFrame(animate)
-    } else {
-      // Snap phase: spring towards nearest item
-      const wrapped = wrapOffset(offsetRef.current)
-      const nearestSnap = Math.round(wrapped / ITEM_HEIGHT) * ITEM_HEIGHT
-      let distToSnap = nearestSnap - wrapped
+    } else if (phaseRef.current === "snap") {
+      const target = snapTargetRef.current!
+      const dist = target - offsetRef.current
 
-      // Normalize for wrapping
-      if (distToSnap > totalHeight / 2) distToSnap -= totalHeight
-      if (distToSnap < -totalHeight / 2) distToSnap += totalHeight
-
-      if (Math.abs(distToSnap) > 0.3 || Math.abs(v) > 0.001) {
-        // Spring: accelerate towards snap, then friction kills velocity
-        v = v * SNAP_FRICTION + distToSnap * SNAP_STIFFNESS
-        offsetRef.current += v
-        velocityRef.current = v
-
-        paint()
-        rafRef.current = requestAnimationFrame(animate)
-      } else {
-        // Settled: lock to exact position
-        offsetRef.current = wrapOffset(nearestSnap)
+      if (Math.abs(dist) < 0.5) {
+        // Settled
+        offsetRef.current = target
+        phaseRef.current = "idle"
         velocityRef.current = 0
         paint()
 
-        const idx = Math.round(offsetRef.current / ITEM_HEIGHT) % options.length
+        const wrapped = wrapOffset(target)
+        const idx = Math.round(wrapped / ITEM_HEIGHT) % options.length
         const opt = options[idx]
         if (opt) {
           onChange(opt.id)
           onChangeCommitted?.(opt.id)
         }
+      } else {
+        // Lerp towards target (ease-out)
+        offsetRef.current += dist * 0.15
+        paint()
+        rafRef.current = requestAnimationFrame(animate)
       }
     }
-  }, [options, totalHeight, wrapOffset, paint, onChange, onChangeCommitted])
+  }, [options, wrapOffset, findSnapTarget, paint, onChange, onChangeCommitted])
 
   // --- Pointer handlers ---
   const onPointerDown = useCallback(
@@ -162,6 +172,7 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
       lastYRef.current = e.clientY
       lastTimeRef.current = performance.now()
       velocityRef.current = 0
+      pointerHistoryRef.current = [{ y: e.clientY, t: performance.now() }]
       ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     },
     [],
@@ -173,17 +184,17 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
 
       const now = performance.now()
       const dy = e.clientY - lastYRef.current
-      const dt = Math.max(now - lastTimeRef.current, 1)
 
       offsetRef.current -= dy
-      // Smooth velocity with EMA and cap max speed
-      const rawV = -dy / dt
-      const maxV = 3.0 // px/ms — prevents wild flings
-      const clampedV = Math.max(-maxV, Math.min(maxV, rawV))
-      velocityRef.current = velocityRef.current * 0.3 + clampedV * 0.7
-
       lastYRef.current = e.clientY
       lastTimeRef.current = now
+
+      // Keep last 100ms of pointer history for velocity calculation on release
+      const history = pointerHistoryRef.current
+      history.push({ y: e.clientY, t: now })
+      while (history.length > 1 && now - history[0].t > 100) {
+        history.shift()
+      }
 
       paint()
     },
@@ -194,7 +205,43 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
     (e: React.PointerEvent) => {
       if (!isDraggingRef.current) return
       isDraggingRef.current = false
-      lastTimeRef.current = performance.now()
+
+      // Compute release velocity from pointer history (not last frame)
+      const history = pointerHistoryRef.current
+      const now = performance.now()
+      history.push({ y: e.clientY, t: now })
+
+      // Use oldest point within last 80ms for stable velocity
+      let startPoint = history[0]
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (now - history[i].t >= 30) {
+          startPoint = history[i]
+          break
+        }
+      }
+
+      const dt = now - startPoint.t
+      if (dt > 5) {
+        const dy = e.clientY - startPoint.y
+        const rawV = -dy / dt
+        // Cap velocity
+        const maxV = 2.5
+        velocityRef.current = Math.max(-maxV, Math.min(maxV, rawV))
+      } else {
+        velocityRef.current = 0
+      }
+
+      pointerHistoryRef.current = []
+      lastTimeRef.current = now
+
+      // Decide phase: momentum if enough velocity, otherwise snap directly
+      if (Math.abs(velocityRef.current) > MIN_VELOCITY) {
+        phaseRef.current = "momentum"
+      } else {
+        phaseRef.current = "snap"
+        snapTargetRef.current = findSnapTarget(offsetRef.current)
+      }
+
       rafRef.current = requestAnimationFrame(animate)
     },
     [animate],
@@ -208,8 +255,9 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
       if (relSlot === 0) return // already center
 
       cancelAnimationFrame(rafRef.current)
-      offsetRef.current -= relSlot * ITEM_HEIGHT
       velocityRef.current = 0
+      phaseRef.current = "snap"
+      snapTargetRef.current = findSnapTarget(offsetRef.current - relSlot * ITEM_HEIGHT)
       lastTimeRef.current = performance.now()
       rafRef.current = requestAnimationFrame(animate)
     },
