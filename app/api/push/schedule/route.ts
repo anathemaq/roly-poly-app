@@ -51,12 +51,12 @@ export async function POST(request: Request) {
     // Schedule a QStash message for each pending activity
     let scheduled = 0
     for (const activity of pending) {
-      const notifiedKey = KEYS.notified(deviceId, activity.id)
+      const notifiedKey = KEYS.notified(deviceId, activity.id, activity.endTime)
       const alreadyNotified = await redis.exists(notifiedKey)
       if (alreadyNotified) continue
 
       // Check if already scheduled (avoid duplicates)
-      const scheduledKey = `push:queued:${deviceId}:${activity.id}`
+      const scheduledKey = KEYS.queued(deviceId, activity.id, activity.endTime)
       const alreadyScheduled = await redis.exists(scheduledKey)
       if (alreadyScheduled) continue
 
@@ -74,6 +74,7 @@ export async function POST(request: Request) {
             deviceId,
             activityId: activity.id,
             activityName: activity.name,
+            endTime: activity.endTime,
           },
           delay: delaySeconds,
         })

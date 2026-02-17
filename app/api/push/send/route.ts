@@ -34,14 +34,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
     }
 
-    const { deviceId, activityId, activityName } = JSON.parse(body)
+    const { deviceId, activityId, activityName, endTime } = JSON.parse(body)
 
     if (!deviceId || !activityId) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
 
     // Check if already notified (deduplication)
-    const notifiedKey = KEYS.notified(deviceId, activityId)
+    const notifiedKey = KEYS.notified(deviceId, activityId, endTime)
     const alreadyNotified = await redis.exists(notifiedKey)
     if (alreadyNotified) {
       return NextResponse.json({ success: true, skipped: true })
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     await redis.set(notifiedKey, "1", { ex: TTL.notified })
 
     // Clean up queued flag
-    await redis.del(`push:queued:${deviceId}:${activityId}`)
+    await redis.del(KEYS.queued(deviceId, activityId, endTime))
 
     return NextResponse.json({ success: true, sent: true })
   } catch (error: unknown) {
