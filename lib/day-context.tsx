@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react"
 import { type Activity, type DayTemplate, DEFAULT_TEMPLATES } from "./types"
+import { getDeviceId } from "./device-id"
 
 type TimerPreset = {
   work: number
@@ -192,6 +193,35 @@ export function DayProvider({ children }: { children: ReactNode }) {
     saveToStorage(STORAGE_KEYS.pomodoroSessionsDate, new Date().toDateString())
   }, [pomodoroCompletedSessions, isHydrated])
 
+  // --- Sync activities to server for push notifications ---
+  useEffect(() => {
+    if (!isHydrated) return
+
+    const pendingActivities = currentActivities.filter(
+      (a) => !a.completed && a.endTime && new Date(a.endTime) > new Date()
+    )
+
+    const deviceId = getDeviceId()
+    if (!deviceId) return
+
+    const payload = {
+      deviceId,
+      activities: pendingActivities.map((a) => ({
+        id: a.id,
+        name: a.name,
+        endTime: a.endTime!.toISOString(),
+      })),
+    }
+
+    fetch("/api/push/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).catch(() => {
+      // Silently fail — client-side notifications still work as fallback
+    })
+  }, [currentActivities, isHydrated])
+
   // --- Activity completion notification + auto-complete ---
   const notifiedActivitiesRef = useRef<Set<string>>(new Set())
   useEffect(() => {
@@ -211,7 +241,7 @@ export function DayProvider({ children }: { children: ReactNode }) {
           notifiedActivitiesRef.current.add(activity.id)
           expiredIds.push(activity.id)
           sendNotification(
-            "Время вышло!",
+            "Время ��ышло!",
             `Активность "${activity.name}" завершена`
           )
         }
