@@ -1,17 +1,40 @@
 import { NextResponse } from "next/server"
-import { verifySignatureAppRouter } from "@upstash/qstash/nextjs"
+import { Receiver } from "@upstash/qstash"
 import webpush from "web-push"
 import { redis, KEYS, TTL } from "@/lib/redis"
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL || "mailto:noreply@roly-poly.app",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+function getReceiver() {
+  return new Receiver({
+    currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY!,
+    nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY!,
+  })
+}
 
-async function handler(request: Request) {
+function initVapid() {
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL || "mailto:noreply@roly-poly.app",
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+}
+
+export async function POST(request: Request) {
+  // Verify the request comes from QStash
   try {
-    const { deviceId, activityId, activityName } = await request.json()
+    const receiver = getReceiver()
+    const body = await request.text()
+    const signature = request.headers.get("upstash-signature") || ""
+
+    const isValid = await receiver.verify({
+      signature,
+      body,
+    })
+
+    if (!isValid) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+    }
+
+    const { deviceId, activityId, activityName } = JSON.parse(body)
 
     if (!deviceId || !activityId) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
@@ -37,6 +60,7 @@ async function handler(request: Request) {
       typeof subRaw === "string" ? JSON.parse(subRaw) : subRaw
 
     // Send the push notification
+    initVapid()
     await webpush.sendNotification(
       subscription,
       JSON.stringify({
@@ -59,7 +83,8 @@ async function handler(request: Request) {
     // If subscription is expired/invalid, clean it up
     if (pushError.statusCode === 410 || pushError.statusCode === 404) {
       try {
-        const { deviceId } = await request.clone().json()
+        const clonedBody = await request.clone().text()
+        const { deviceId } = JSON.parse(clonedBody)
         if (deviceId) {
           await redis.del(KEYS.subscription(deviceId))
         }
@@ -75,5 +100,3 @@ async function handler(request: Request) {
     )
   }
 }
-
-export const POST = verifySignatureAppRouter(handler)

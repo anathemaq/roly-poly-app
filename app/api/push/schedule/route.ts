@@ -2,9 +2,9 @@ import { NextResponse } from "next/server"
 import { Client } from "@upstash/qstash"
 import { redis, KEYS, TTL } from "@/lib/redis"
 
-const qstash = new Client({
-  token: process.env.QSTASH_TOKEN!,
-})
+function getQStashClient() {
+  return new Client({ token: process.env.QSTASH_TOKEN! })
+}
 
 interface ScheduledActivity {
   id: string
@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       )
 
       try {
+        const qstash = getQStashClient()
         await qstash.publishJSON({
           url: `${baseUrl}/api/push/send`,
           body: {
