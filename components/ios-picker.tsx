@@ -19,10 +19,10 @@ const VISIBLE_COUNT = 5
 const CENTER = Math.floor(VISIBLE_COUNT / 2)
 
 // iOS-style deceleration physics
-const DECELERATION = 0.985 // per-ms multiplier — stronger friction for controllable feel
-const MIN_VELOCITY = 0.15 // px/ms threshold to enter snap phase
-const SNAP_TENSION = 0.2 // spring snap strength — snappier settle
-const SNAP_DAMPING = 0.65 // spring snap damping
+const DECELERATION = 0.992 // per-ms multiplier
+const MIN_VELOCITY = 0.08 // px/ms threshold to enter snap phase
+const SNAP_STIFFNESS = 0.08 // spring pull towards target (lower = softer)
+const SNAP_FRICTION = 0.85 // velocity damping per frame in snap mode (lower = stops faster)
 
 /**
  * Zero-rerender iOS-style wheel picker.
@@ -109,38 +109,45 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
     lastTimeRef.current = now
 
     let v = velocityRef.current
-    const wrapped = wrapOffset(offsetRef.current)
-    const nearestSnap = Math.round(wrapped / ITEM_HEIGHT) * ITEM_HEIGHT
-    const distToSnap = nearestSnap - wrapped
-    const normalizedDist = ((distToSnap + totalHeight / 2) % totalHeight) - totalHeight / 2
 
     if (Math.abs(v) > MIN_VELOCITY) {
-      // Momentum phase: decelerate
+      // Momentum phase: apply velocity then decelerate
       v *= Math.pow(DECELERATION, dt)
       offsetRef.current += v * dt
       velocityRef.current = v
 
       paint()
       rafRef.current = requestAnimationFrame(animate)
-    } else if (Math.abs(normalizedDist) > 0.5) {
-      // Snap phase: spring towards nearest item
-      v = v * SNAP_DAMPING + normalizedDist * SNAP_TENSION
-      offsetRef.current += v * Math.min(dt, 16)
-      velocityRef.current = v
-
-      paint()
-      rafRef.current = requestAnimationFrame(animate)
     } else {
-      // Settled
-      offsetRef.current = wrapOffset(nearestSnap)
-      velocityRef.current = 0
-      paint()
+      // Snap phase: spring towards nearest item
+      const wrapped = wrapOffset(offsetRef.current)
+      const nearestSnap = Math.round(wrapped / ITEM_HEIGHT) * ITEM_HEIGHT
+      let distToSnap = nearestSnap - wrapped
 
-      const idx = Math.round(offsetRef.current / ITEM_HEIGHT) % options.length
-      const opt = options[idx]
-      if (opt) {
-        onChange(opt.id)
-        onChangeCommitted?.(opt.id)
+      // Normalize for wrapping
+      if (distToSnap > totalHeight / 2) distToSnap -= totalHeight
+      if (distToSnap < -totalHeight / 2) distToSnap += totalHeight
+
+      if (Math.abs(distToSnap) > 0.3 || Math.abs(v) > 0.001) {
+        // Spring: accelerate towards snap, then friction kills velocity
+        v = v * SNAP_FRICTION + distToSnap * SNAP_STIFFNESS
+        offsetRef.current += v
+        velocityRef.current = v
+
+        paint()
+        rafRef.current = requestAnimationFrame(animate)
+      } else {
+        // Settled: lock to exact position
+        offsetRef.current = wrapOffset(nearestSnap)
+        velocityRef.current = 0
+        paint()
+
+        const idx = Math.round(offsetRef.current / ITEM_HEIGHT) % options.length
+        const opt = options[idx]
+        if (opt) {
+          onChange(opt.id)
+          onChangeCommitted?.(opt.id)
+        }
       }
     }
   }, [options, totalHeight, wrapOffset, paint, onChange, onChangeCommitted])
