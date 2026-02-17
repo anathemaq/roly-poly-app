@@ -29,8 +29,11 @@ export async function POST(request: Request) {
     const now = new Date()
     const pending = activities.filter((a) => new Date(a.endTime) > now)
 
+    console.log("[v0] Schedule request:", { deviceId, total: activities.length, pending: pending.length })
+
     if (pending.length === 0) {
       await redis.del(KEYS.schedule(deviceId))
+      console.log("[v0] No pending activities, clearing schedule")
       return NextResponse.json({ success: true, scheduled: 0 })
     }
 
@@ -76,8 +79,9 @@ export async function POST(request: Request) {
         // Mark as queued (TTL = schedule TTL)
         await redis.set(scheduledKey, "1", { ex: TTL.schedule })
         scheduled++
+        console.log("[v0] QStash scheduled:", { activityId: activity.id, name: activity.name, delaySeconds, endTime: activity.endTime })
       } catch (err) {
-        console.error(`Failed to schedule QStash for ${activity.id}:`, err)
+        console.error(`[v0] Failed to schedule QStash for ${activity.id}:`, err)
       }
     }
 

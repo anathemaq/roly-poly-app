@@ -70,10 +70,13 @@ export function RegisterSW() {
       }
 
       if (Notification.permission === "granted") {
-        await subscribeToPush(registration)
+        const sub = await subscribeToPush(registration)
+        console.log("[v0] Push subscription result:", sub ? "subscribed" : "failed")
+      } else {
+        console.log("[v0] Notification permission:", Notification.permission)
       }
-    } catch {
-      // SW registration failed
+    } catch (err) {
+      console.error("[v0] SW registration failed:", err)
     }
   }, [])
 
