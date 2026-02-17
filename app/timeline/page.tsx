@@ -55,7 +55,7 @@ function computeLayout(activities: Activity[]): Map<string, { top: number; heigh
     // Ensure this block doesn't overlap with previous blocks
     const top = Math.max(naturalTop, maxBottom)
     layout.set(a.id, { top, height: visualHeight })
-    maxBottom = top + visualHeight + 1 // 1px gap
+    maxBottom = top + visualHeight + 6 // gap for resize handles between blocks
   }
 
   return layout
@@ -83,21 +83,39 @@ const ActivityBlock = memo(function ActivityBlock({
   onDragStart,
   onResizeStart,
 }: ActivityBlockProps) {
-  const isCompact = height < 60
-  const showTime = height >= 30
-  const showDuration = height >= 45
+  // Adaptive content: show what fits
+  const isTiny = height < 40
+  const isCompact = height < 55
+  const showDuration = height >= 70
 
   return (
     <div
-      className={cn(
-        "absolute left-1 right-1 z-10 transition-opacity duration-100",
-      )}
-      style={{ top: `${top}px`, height: `${height}px` }}
+      className="absolute left-1 right-1"
+      style={{ top: `${top}px`, height: `${height}px`, zIndex: 10 }}
     >
       {/* Drop indicator line above block */}
       {isDragTarget && (
-        <div className="absolute -top-1 left-0 right-0 h-0.5 bg-primary rounded-full z-30" />
+        <div className="absolute -top-1.5 left-0 right-0 h-1 bg-primary rounded-full z-30 shadow-sm shadow-primary/40" />
       )}
+
+      {/* Bottom resize handle -- positioned OUTSIDE the card, above next block */}
+      <div
+        className="absolute -bottom-2 left-2 right-2 h-5 cursor-ns-resize flex items-center justify-center"
+        style={{ zIndex: 25 }}
+        onPointerDown={(e) => onResizeStart(activity.id, "bottom", e)}
+      >
+        <div className="w-10 h-1 rounded-full bg-muted-foreground/40" />
+      </div>
+
+      {/* Top resize handle -- positioned OUTSIDE the card */}
+      <div
+        className="absolute -top-2 left-2 right-2 h-5 cursor-ns-resize flex items-center justify-center"
+        style={{ zIndex: 25 }}
+        onPointerDown={(e) => onResizeStart(activity.id, "top", e)}
+      >
+        <div className="w-10 h-1 rounded-full bg-muted-foreground/40" />
+      </div>
+
       <Card
         className={cn(
           "h-full relative overflow-hidden touch-none select-none",
@@ -106,60 +124,52 @@ const ActivityBlock = memo(function ActivityBlock({
         )}
         onClick={() => onSelect(activity.id)}
       >
-        <div className="p-1.5 h-full flex flex-col justify-center overflow-hidden">
-          {isCompact ? (
-            <div className="flex items-center gap-1">
+        <div className="px-2 py-1 h-full flex flex-col justify-center overflow-hidden">
+          {isTiny ? (
+            /* Tiny: just name + duration inline */
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-foreground truncate flex-1">
+                {activity.name}
+              </span>
+              <span className="text-[10px] font-medium text-primary whitespace-nowrap">
+                {formatDuration(activity.duration)}
+              </span>
+            </div>
+          ) : isCompact ? (
+            /* Compact: name + time range on one line */
+            <div className="flex items-center gap-1.5">
               <span className="text-xs font-medium text-foreground truncate flex-1">
                 {activity.name}
               </span>
               <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                {formatTime(activity.startTime)}-{formatTime(activity.endTime)}
-              </span>
-              <span className="text-[10px] font-medium text-primary whitespace-nowrap ml-0.5">
-                {formatDuration(activity.duration)}
+                {formatTime(activity.startTime)} - {formatTime(activity.endTime)}
               </span>
             </div>
           ) : (
+            /* Normal: name, time, optional duration */
             <>
-              <div className="flex items-center gap-1 mb-0.5">
-                <span className="text-xs font-medium text-foreground truncate">
-                  {activity.name}
-                </span>
-              </div>
-              {showTime && (
-                <div className="text-[10px] text-muted-foreground truncate">
+              <span className="text-xs font-medium text-foreground truncate leading-snug">
+                {activity.name}
+              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] text-muted-foreground">
                   {formatTime(activity.startTime)} - {formatTime(activity.endTime)}
-                </div>
-              )}
-              {showDuration && (
-                <div className="text-[10px] font-medium text-primary truncate">
-                  {formatDuration(activity.duration)}
-                </div>
-              )}
+                </span>
+                {showDuration && (
+                  <span className="text-[10px] font-medium text-primary">
+                    {formatDuration(activity.duration)}
+                  </span>
+                )}
+              </div>
             </>
           )}
         </div>
 
         {/* Drag handle -- center area */}
         <div
-          className="absolute inset-x-0 top-3 bottom-3 cursor-grab active:cursor-grabbing z-10"
+          className="absolute inset-x-0 top-2 bottom-2 cursor-grab active:cursor-grabbing z-10"
           onPointerDown={(e) => onDragStart(activity.id, e)}
         />
-
-        {/* Resize: top edge */}
-        <div
-          className="absolute top-0 left-0 right-0 h-3 cursor-ns-resize z-20 flex items-start justify-center"
-          onPointerDown={(e) => onResizeStart(activity.id, "top", e)}
-        >
-          <div className="w-8 h-0.5 rounded-full bg-muted-foreground/30 mt-1" />
-        </div>
-        {/* Resize: bottom edge */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize z-20 flex items-end justify-center"
-          onPointerDown={(e) => onResizeStart(activity.id, "bottom", e)}
-        >
-          <div className="w-8 h-0.5 rounded-full bg-muted-foreground/30 mb-1" />
-        </div>
       </Card>
     </div>
   )
@@ -367,11 +377,12 @@ export default function TimelineScreen() {
     activityId: string
     edge?: "top" | "bottom"
     startY: number
-    initialOffsetInBlock: number // for drag: pointer offset within the block
+    initialOffsetInBlock: number
     startTop: number
     startHeight: number
     pointerId: number
   } | null>(null)
+  const autoScrollRef = useRef<number>(0)
 
   // Find the drop target: which activity would the dragged block go before?
   const findDropTarget = useCallback(
@@ -414,6 +425,30 @@ export default function TimelineScreen() {
           ghostHeight,
           dropTargetId,
         })
+
+        // Auto-scroll when pointer is near the viewport edges
+        const EDGE_ZONE = 60 // px from edge to trigger scroll
+        const SCROLL_SPEED = 8 // px per frame
+        const pointerInViewport = e.clientY - rect.top
+        const el = timelineRef.current!
+
+        cancelAnimationFrame(autoScrollRef.current)
+
+        if (pointerInViewport < EDGE_ZONE) {
+          // Scroll up
+          const tick = () => {
+            el.scrollTop = Math.max(0, el.scrollTop - SCROLL_SPEED)
+            autoScrollRef.current = requestAnimationFrame(tick)
+          }
+          autoScrollRef.current = requestAnimationFrame(tick)
+        } else if (pointerInViewport > rect.height - EDGE_ZONE) {
+          // Scroll down
+          const tick = () => {
+            el.scrollTop = Math.min(el.scrollHeight - el.clientHeight, el.scrollTop + SCROLL_SPEED)
+            autoScrollRef.current = requestAnimationFrame(tick)
+          }
+          autoScrollRef.current = requestAnimationFrame(tick)
+        }
       } else if (g.type === "resize") {
         const activity = currentActivities.find((a) => a.id === g.activityId)
         if (!activity || !activity.startTime) return
@@ -448,6 +483,7 @@ export default function TimelineScreen() {
       const g = gestureRef.current
       gestureRef.current = null
 
+      cancelAnimationFrame(autoScrollRef.current)
       document.removeEventListener("pointermove", onGesturePointerMove)
       document.removeEventListener("pointerup", onGesturePointerUp)
       document.body.style.overflow = ""
@@ -638,17 +674,21 @@ export default function TimelineScreen() {
               const isBeingDragged = dragState?.activityId === activity.id
 
               return (
-                <ActivityBlock
+                <div
                   key={activity.id}
-                  activity={activity}
-                  top={l.top}
-                  height={l.height}
-                  isSelected={selectedActivity === activity.id && !dragState}
-                  isDragTarget={dragState?.dropTargetId === activity.id}
-                  onSelect={handleSelect}
-                  onDragStart={startDrag}
-                  onResizeStart={startResize}
-                />
+                  style={{ opacity: isBeingDragged ? 0.25 : 1 }}
+                >
+                  <ActivityBlock
+                    activity={activity}
+                    top={l.top}
+                    height={l.height}
+                    isSelected={selectedActivity === activity.id && !dragState}
+                    isDragTarget={dragState?.dropTargetId === activity.id}
+                    onSelect={handleSelect}
+                    onDragStart={startDrag}
+                    onResizeStart={startResize}
+                  />
+                </div>
               )
             })}
 
