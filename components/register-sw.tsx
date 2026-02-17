@@ -18,9 +18,22 @@ async function subscribeToPush(registration: ServiceWorkerRegistration) {
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
   if (!vapidPublicKey) return null
 
-  // Check if already subscribed
+  // Check existing subscription and re-subscribe if VAPID key changed
   let subscription = await registration.pushManager.getSubscription()
-  if (subscription) return subscription
+  if (subscription) {
+    // Unsubscribe old subscription so we can create one with the current key
+    const existingKey = subscription.options?.applicationServerKey
+    const expectedKey = urlBase64ToUint8Array(vapidPublicKey)
+    const keysMatch =
+      existingKey &&
+      new Uint8Array(existingKey).length === expectedKey.length &&
+      new Uint8Array(existingKey).every((v, i) => v === expectedKey[i])
+
+    if (keysMatch) return subscription
+
+    // VAPID key changed -- unsubscribe old and create new
+    await subscription.unsubscribe()
+  }
 
   try {
     subscription = await registration.pushManager.subscribe({
