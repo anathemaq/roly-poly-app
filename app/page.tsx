@@ -33,15 +33,7 @@ export default function StartScreen() {
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) || templates[0]
   
-  // Логируем изменения selectedTemplateId
-  useEffect(() => {
-    console.log('Selected template ID changed to:', selectedTemplateId)
-    console.log('Selected template name:', selectedTemplate.name)
-  }, [selectedTemplateId, selectedTemplate.name])
-
-
   const handleStartDay = () => {
-    console.log('Starting day with template:', selectedTemplate.name, 'ID:', selectedTemplateId)
     startDay(selectedTemplate)
     router.push("/today")
   }
