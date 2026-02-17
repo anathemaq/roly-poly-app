@@ -40,6 +40,8 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
   const lastYRef = useRef(0)
   const lastTimeRef = useRef(0)
   const lastReportedRef = useRef(-1)
+  // Track pointer history for reliable velocity on release
+  const pointerHistoryRef = useRef<{ y: number; t: number }[]>([])
   const totalHeight = options.length * ITEM_HEIGHT
 
   // Sync initial value
@@ -162,6 +164,7 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
       lastYRef.current = e.clientY
       lastTimeRef.current = performance.now()
       velocityRef.current = 0
+      pointerHistoryRef.current = [{ y: e.clientY, t: performance.now() }]
       ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     },
     [],
@@ -173,17 +176,17 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
 
       const now = performance.now()
       const dy = e.clientY - lastYRef.current
-      const dt = Math.max(now - lastTimeRef.current, 1)
 
       offsetRef.current -= dy
-      // Smooth velocity with EMA and cap max speed
-      const rawV = -dy / dt
-      const maxV = 3.0 // px/ms — prevents wild flings
-      const clampedV = Math.max(-maxV, Math.min(maxV, rawV))
-      velocityRef.current = velocityRef.current * 0.3 + clampedV * 0.7
-
       lastYRef.current = e.clientY
       lastTimeRef.current = now
+
+      // Keep last 100ms of pointer history for velocity calculation on release
+      const history = pointerHistoryRef.current
+      history.push({ y: e.clientY, t: now })
+      while (history.length > 1 && now - history[0].t > 100) {
+        history.shift()
+      }
 
       paint()
     },
@@ -194,7 +197,34 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
     (e: React.PointerEvent) => {
       if (!isDraggingRef.current) return
       isDraggingRef.current = false
-      lastTimeRef.current = performance.now()
+
+      // Compute release velocity from pointer history (not last frame)
+      const history = pointerHistoryRef.current
+      const now = performance.now()
+      history.push({ y: e.clientY, t: now })
+
+      // Use oldest point within last 80ms for stable velocity
+      let startPoint = history[0]
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (now - history[i].t >= 30) {
+          startPoint = history[i]
+          break
+        }
+      }
+
+      const dt = now - startPoint.t
+      if (dt > 5) {
+        const dy = e.clientY - startPoint.y
+        const rawV = -dy / dt
+        // Cap velocity
+        const maxV = 2.5
+        velocityRef.current = Math.max(-maxV, Math.min(maxV, rawV))
+      } else {
+        velocityRef.current = 0
+      }
+
+      pointerHistoryRef.current = []
+      lastTimeRef.current = now
       rafRef.current = requestAnimationFrame(animate)
     },
     [animate],
