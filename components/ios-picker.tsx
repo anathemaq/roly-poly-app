@@ -19,11 +19,10 @@ const VISIBLE_COUNT = 5
 const CENTER = Math.floor(VISIBLE_COUNT / 2)
 
 // iOS-style deceleration physics
-const DECELERATION = 0.997 // per-ms multiplier (iOS uses ~0.998)
-const MIN_VELOCITY = 0.03 // px/ms threshold to stop
-const RUBBER_BAND = 0.4 // overscroll resistance
-const SNAP_TENSION = 0.12 // spring snap strength
-const SNAP_DAMPING = 0.72 // spring snap damping
+const DECELERATION = 0.985 // per-ms multiplier — stronger friction for controllable feel
+const MIN_VELOCITY = 0.15 // px/ms threshold to enter snap phase
+const SNAP_TENSION = 0.2 // spring snap strength — snappier settle
+const SNAP_DAMPING = 0.65 // spring snap damping
 
 /**
  * Zero-rerender iOS-style wheel picker.
@@ -170,7 +169,11 @@ export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPi
       const dt = Math.max(now - lastTimeRef.current, 1)
 
       offsetRef.current -= dy
-      velocityRef.current = -dy / dt // px per ms
+      // Smooth velocity with EMA and cap max speed
+      const rawV = -dy / dt
+      const maxV = 3.0 // px/ms — prevents wild flings
+      const clampedV = Math.max(-maxV, Math.min(maxV, rawV))
+      velocityRef.current = velocityRef.current * 0.3 + clampedV * 0.7
 
       lastYRef.current = e.clientY
       lastTimeRef.current = now
