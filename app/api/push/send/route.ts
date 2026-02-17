@@ -35,10 +35,8 @@ export async function POST(request: Request) {
     }
 
     const { deviceId, activityId, activityName } = JSON.parse(body)
-    console.log("[v0] Push send called:", { deviceId, activityId, activityName })
 
     if (!deviceId || !activityId) {
-      console.log("[v0] Push send: missing fields")
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
 
@@ -78,7 +76,6 @@ export async function POST(request: Request) {
     // Clean up queued flag
     await redis.del(`push:queued:${deviceId}:${activityId}`)
 
-    console.log("[v0] Push sent successfully:", { deviceId, activityId, activityName })
     return NextResponse.json({ success: true, sent: true })
   } catch (error: unknown) {
     const pushError = error as { statusCode?: number }
