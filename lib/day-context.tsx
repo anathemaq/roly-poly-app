@@ -38,6 +38,7 @@ interface DayContextType {
   pausePomodoro: () => void
   resetPomodoro: () => void
   skipPomodoroPhase: () => void
+  setPomodoroTimeRemaining: (seconds: number) => void
 }
 
 // --- localStorage helpers ---
@@ -576,6 +577,7 @@ export function DayProvider({ children }: { children: ReactNode }) {
         pausePomodoro,
         resetPomodoro,
         skipPomodoroPhase,
+        setPomodoroTimeRemaining,
       }}
     >
       {children}

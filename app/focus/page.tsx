@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { Play, Pause, RotateCcw, SkipForward } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDay, POMODORO_PRESETS } from "@/lib/day-context"
+import { CircularTimer } from "@/components/circular-timer"
 
 export default function FocusScreen() {
   const {
@@ -19,6 +20,7 @@ export default function FocusScreen() {
     pausePomodoro,
     resetPomodoro,
     skipPomodoroPhase,
+    setPomodoroTimeRemaining: setPomodoroTime,
   } = useDay()
 
   const formatTime = (seconds: number) => {
@@ -57,39 +59,20 @@ export default function FocusScreen() {
 
           {/* Timer Display */}
           <div className="flex justify-center">
-            <div className="relative w-56 h-56">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  className="text-border"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  strokeDasharray={`${2 * Math.PI * 45}`}
-                  strokeDashoffset={`${2 * Math.PI * 45 * (1 - getProgress() / 100)}`}
-                  strokeLinecap="round"
-                  className={cn(
-                    "transition-all duration-1000",
-                    pomodoroPhase === "work" ? "text-primary" : "text-secondary",
-                  )}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-foreground">{formatTime(pomodoroTimeRemaining)}</div>
-                </div>
-              </div>
-            </div>
+            <CircularTimer
+              totalDuration={(pomodoroPhase === "work" ? pomodoroPreset.work : pomodoroPreset.break) * 60 * 1000}
+              remaining={pomodoroTimeRemaining * 1000}
+              progress={getProgress()}
+              formattedTime={formatTime(pomodoroTimeRemaining)}
+              size={224}
+              strokeWidth={6}
+              colorClass={pomodoroPhase === "work" ? "text-primary" : "text-secondary"}
+              draggable={!pomodoroIsRunning}
+              onDurationCommit={(newRemainingMs) => {
+                const newSeconds = Math.max(1, Math.round(newRemainingMs / 1000))
+                setPomodoroTime(newSeconds)
+              }}
+            />
           </div>
 
           {/* Timer Controls */}
