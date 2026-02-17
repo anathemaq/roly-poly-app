@@ -1,21 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Убеждаемся, что элементы кликабельны */
-* {
-  pointer-events: auto !important;
-}
-
-button, [role="button"], .clickable {
-  cursor: pointer !important;
-  pointer-events: auto !important;
-}
-
-/* Убираем все возможные блокировки */
-body, html {
-  pointer-events: auto !important;
-  user-select: auto !important;
-}
 
 @custom-variant dark (&:is(.dark *));
 

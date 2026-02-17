@@ -16,6 +16,7 @@ import { Calendar, Pause, Play, SkipForward, GripVertical, Timer } from "lucide-
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useTouchDrag } from "@/hooks/use-touch-drag"
+import { CircularTimer } from "@/components/circular-timer"
 
 export default function TodayScreen() {
   const {
@@ -278,37 +279,26 @@ export default function TodayScreen() {
           </div>
 
           <div className="flex justify-center">
-            <div className="relative w-40 h-40">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  className="text-border"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  strokeDasharray={`${2 * Math.PI * 45}`}
-                  strokeDashoffset={`${2 * Math.PI * 45 * (1 - getProgress() / 100)}`}
-                  strokeLinecap="round"
-                  className="text-primary transition-all duration-1000"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-foreground">{formatTime(timeRemaining)}</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">осталось</div>
-                </div>
-              </div>
-            </div>
+            <CircularTimer
+              totalDuration={
+                currentActivity?.startTime && currentActivity?.endTime
+                  ? currentActivity.endTime.getTime() - currentActivity.startTime.getTime()
+                  : 1
+              }
+              remaining={timeRemaining}
+              progress={getProgress()}
+              formattedTime={formatTime(timeRemaining)}
+              label="осталось"
+              size={160}
+              draggable={!!currentActivity}
+              onDurationCommit={(newRemainingMs) => {
+                if (!currentActivity) return
+                // Adjust the activity's endTime based on drag
+                const newDurationMs = (currentActivity.endTime!.getTime() - currentActivity.startTime!.getTime()) - (timeRemaining - newRemainingMs)
+                const newDurationMin = Math.max(5, Math.round(newDurationMs / 60000))
+                updateActivity(currentActivity.id, { duration: newDurationMin })
+              }}
+            />
           </div>
 
           <div className="flex justify-center gap-3">

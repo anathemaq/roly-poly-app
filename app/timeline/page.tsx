@@ -1,327 +1,661 @@
 "use client"
 
-import type React from "react"
-
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef, useCallback, useMemo, memo } from "react"
 import { useDay } from "@/lib/day-context"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Calendar, GripVertical, Clock, Undo2 } from "lucide-react"
+import { Calendar, Clock, Undo2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { useTouchDrag } from "@/hooks/use-touch-drag"
-import { IOSPicker } from "@/components/ios-picker"
+import type { Activity } from "@/lib/types"
 
+// --- Constants ---
+const PX_PER_HOUR = 100
+const PX_PER_MINUTE = PX_PER_HOUR / 60
+const TOTAL_HEIGHT = 24 * PX_PER_HOUR
+const SNAP_MINUTES = 5
+const MIN_DURATION = 5
+const MIN_BLOCK_HEIGHT = 36 // minimum visual height for any block
+
+// --- Pure helpers ---
+function minutesToPx(minutes: number) {
+  return minutes * PX_PER_MINUTE
+}
+
+function pxToMinutes(px: number) {
+  return Math.round(px / PX_PER_MINUTE / SNAP_MINUTES) * SNAP_MINUTES
+}
+
+function formatTime(date?: Date) {
+  if (!date || isNaN(date.getTime())) return ""
+  return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+}
+
+function formatDuration(minutes: number) {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h === 0) return `${m}м`
+  if (m === 0) return `${h}ч`
+  return `${h}ч ${m}м`
+}
+
+// Compute visual layout: top/height for each activity, preventing overlaps
+// Short blocks get minimum height, and subsequent blocks are pushed down
+function computeLayout(activities: Activity[]): Map<string, { top: number; height: number }> {
+  const layout = new Map<string, { top: number; height: number }>()
+  let maxBottom = 0
+
+  for (const a of activities) {
+    if (!a.startTime) continue
+    const naturalTop = a.startTime.getHours() * PX_PER_HOUR + a.startTime.getMinutes() * PX_PER_MINUTE
+    const naturalHeight = minutesToPx(a.duration)
+    const visualHeight = Math.max(MIN_BLOCK_HEIGHT, naturalHeight)
+
+    // Ensure this block doesn't overlap with previous blocks
+    const top = Math.max(naturalTop, maxBottom)
+    layout.set(a.id, { top, height: visualHeight })
+    maxBottom = top + visualHeight + 6 // gap for resize handles between blocks
+  }
+
+  return layout
+}
+
+// --- Activity Block (memoized) ---
+interface ActivityBlockProps {
+  activity: Activity
+  top: number
+  height: number
+  isSelected: boolean
+  isDragTarget: boolean // visual indicator for drop target
+  onSelect: (id: string) => void
+  onDragStart: (id: string, e: React.PointerEvent) => void
+  onResizeStart: (id: string, edge: "top" | "bottom", e: React.PointerEvent) => void
+}
+
+const ActivityBlock = memo(function ActivityBlock({
+  activity,
+  top,
+  height,
+  isSelected,
+  isDragTarget,
+  isResizing,
+  onSelect,
+  onDragStart,
+  onResizeStart,
+}: ActivityBlockProps & { isResizing?: boolean }) {
+  return (
+    <div
+      className="absolute left-1 right-1"
+      style={{ top: `${top}px`, height: `${height}px`, zIndex: isResizing ? 30 : 10 }}
+    >
+      {/* Drop indicator line above block */}
+      {isDragTarget && (
+        <div className="absolute -top-1.5 left-0 right-0 h-1 bg-primary rounded-full z-30 shadow-sm shadow-primary/40" />
+      )}
+
+      {/* Floating label: always visible above block when block is too short for content */}
+      {height < 50 && (
+        <div
+          className="absolute left-0 right-0 pointer-events-none"
+          style={{ bottom: `${height + 2}px`, zIndex: 35 }}
+        >
+          <div className="flex items-center justify-center">
+            <span className="text-[10px] font-medium text-primary bg-background/90 backdrop-blur-sm border border-border rounded px-1.5 py-0.5 shadow-sm whitespace-nowrap">
+              {activity.name} &middot; {formatDuration(activity.duration)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom resize handle -- positioned OUTSIDE the card */}
+      <div
+        className="absolute -bottom-3 left-2 right-2 h-6 cursor-ns-resize flex items-center justify-center"
+        style={{ zIndex: 35 }}
+        onPointerDown={(e) => onResizeStart(activity.id, "bottom", e)}
+      >
+        <div className="w-10 h-1 rounded-full bg-muted-foreground/40" />
+      </div>
+
+      {/* Top resize handle -- positioned OUTSIDE the card */}
+      <div
+        className="absolute -top-3 left-2 right-2 h-6 cursor-ns-resize flex items-center justify-center"
+        style={{ zIndex: 35 }}
+        onPointerDown={(e) => onResizeStart(activity.id, "top", e)}
+      >
+        <div className="w-10 h-1 rounded-full bg-muted-foreground/40" />
+      </div>
+
+      <Card
+        className={cn(
+          "h-full relative overflow-hidden touch-none select-none",
+          "transition-shadow duration-150",
+          isSelected && "ring-2 ring-primary shadow-lg",
+        )}
+        onClick={() => onSelect(activity.id)}
+      >
+        <div className="px-2 py-0.5 h-full flex flex-col justify-center overflow-hidden">
+          {height < 30 ? (
+            /* Ultra-tiny: just colored bar */
+            <div className="w-full h-1 bg-primary/50 rounded-full" />
+          ) : height < 50 ? (
+            /* Short: name only, truncated */
+            <span className="text-[11px] font-medium text-foreground truncate">
+              {activity.name}
+            </span>
+          ) : height < 65 ? (
+            /* Compact: name + duration on one line */
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-foreground truncate flex-1">
+                {activity.name}
+              </span>
+              <span className="text-[10px] font-medium text-primary whitespace-nowrap">
+                {formatDuration(activity.duration)}
+              </span>
+            </div>
+          ) : height < 85 ? (
+            /* Medium: name + time */
+            <>
+              <span className="text-xs font-medium text-foreground truncate leading-snug">
+                {activity.name}
+              </span>
+              <span className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {formatTime(activity.startTime)} - {formatTime(activity.endTime)}
+              </span>
+            </>
+          ) : (
+            /* Full: name + time + duration */
+            <>
+              <span className="text-xs font-medium text-foreground truncate leading-snug">
+                {activity.name}
+              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] text-muted-foreground">
+                  {formatTime(activity.startTime)} - {formatTime(activity.endTime)}
+                </span>
+                <span className="text-[10px] font-medium text-primary">
+                  {formatDuration(activity.duration)}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Drag handle -- center area */}
+        <div
+          className="absolute inset-x-0 top-2 bottom-2 cursor-grab active:cursor-grabbing z-10"
+          onPointerDown={(e) => onDragStart(activity.id, e)}
+        />
+      </Card>
+    </div>
+  )
+})
+
+// --- Time Scale (static, memoized) ---
+const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+const TimeScale = memo(function TimeScale() {
+  return (
+    <div className="w-12 bg-muted/30 border-r border-border flex-shrink-0">
+      <div className="relative" style={{ height: `${TOTAL_HEIGHT}px` }}>
+        {HOURS.map((hour) => (
+          <div key={hour} className="absolute w-full" style={{ top: `${hour * PX_PER_HOUR}px` }}>
+            <div className="flex items-center h-6 px-1.5">
+              <span className="text-[10px] font-medium text-muted-foreground">
+                {hour.toString().padStart(2, "0")}:00
+              </span>
+            </div>
+            {[15, 30, 45].map((minute) => (
+              <div
+                key={minute}
+                className="absolute w-1.5 h-px bg-border"
+                style={{ top: `${minutesToPx(minute)}px`, left: "9px" }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+})
+
+// --- Current Time Indicator ---
+function CurrentTimeIndicator() {
+  const [now, setNow] = useState(new Date())
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const top = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
+
+  return (
+    <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: `${top}px` }}>
+      <div className="flex items-center">
+        <div className="w-2 h-2 rounded-full bg-primary" />
+        <div className="flex-1 h-0.5 bg-primary" />
+        <span className="text-xs font-medium text-primary ml-2 bg-background px-1 rounded">
+          {formatTime(now)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// --- Activity Detail Popup ---
+interface ActivityPopupProps {
+  activity: Activity
+  onClose: () => void
+  onUpdate: (id: string, changes: Partial<Activity>) => void
+}
+
+function ActivityPopup({ activity, onClose, onUpdate }: ActivityPopupProps) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <Card className="max-w-md w-full p-6 bg-background">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            <h3 className="text-lg font-semibold text-foreground">{activity.name}</h3>
+          </div>
+
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Начало:</span>
+              <input
+                type="time"
+                value={activity.startTime ? activity.startTime.toTimeString().slice(0, 5) : ""}
+                onChange={(e) => {
+                  const [hours, minutes] = e.target.value.split(":").map(Number)
+                  const newStart = new Date(activity.startTime!)
+                  newStart.setHours(hours, minutes, 0, 0)
+                  onUpdate(activity.id, { startTime: newStart })
+                }}
+                className="px-2 py-1 border border-border rounded text-sm bg-background text-foreground"
+              />
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Длительность:</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() =>
+                    onUpdate(activity.id, {
+                      duration: Math.max(MIN_DURATION, activity.duration - SNAP_MINUTES),
+                    })
+                  }
+                >
+                  {"-"}
+                </Button>
+                <span className="text-sm font-medium w-16 text-center text-foreground">
+                  {formatDuration(activity.duration)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() =>
+                    onUpdate(activity.id, { duration: activity.duration + SNAP_MINUTES })
+                  }
+                >
+                  {"+"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Окончание:</span>
+              <span className="text-foreground">{formatTime(activity.endTime)}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Закрыть
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// --- Drag ghost overlay ---
+interface DragGhostProps {
+  activity: Activity
+  topPx: number
+  heightPx: number
+}
+
+function DragGhost({ activity, topPx, heightPx }: DragGhostProps) {
+  return (
+    <div
+      className="absolute left-1 right-1 z-40 pointer-events-none opacity-60"
+      style={{ top: `${topPx}px`, height: `${heightPx}px` }}
+    >
+      <Card className="h-full ring-2 ring-primary shadow-xl bg-primary/10">
+        <div className="p-1.5 h-full flex items-center">
+          <span className="text-xs font-medium text-foreground truncate">{activity.name}</span>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// --- Main Timeline ---
 export default function TimelineScreen() {
   const { currentActivities, updateActivity, reorderActivities } = useDay()
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-  const [currentTime, setCurrentTime] = useState(new Date())
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null)
-  const [isResizing, setIsResizing] = useState<string | null>(null)
-  const [resizeEdge, setResizeEdge] = useState<'top' | 'bottom'>('bottom')
-  const resizeOffsetRef = useRef<number>(0)
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([])
   const timelineRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
-  // Undo history - store snapshots of activities
-  const [undoStack, setUndoStack] = useState<any[]>([])
+  // Layout computation: prevents short-block overlap
+  const layout = useMemo(() => computeLayout(currentActivities), [currentActivities])
+
+  // --- Undo ---
+  const [undoStack, setUndoStack] = useState<Activity[][]>([])
   const saveSnapshot = useCallback(() => {
-    const snapshot = currentActivities.map(a => ({
+    const snapshot = currentActivities.map((a) => ({
       ...a,
       startTime: a.startTime ? new Date(a.startTime.getTime()) : undefined,
       endTime: a.endTime ? new Date(a.endTime.getTime()) : undefined,
     }))
-    setUndoStack(prev => [...prev.slice(-19), snapshot]) // keep last 20
+    setUndoStack((prev) => [...prev.slice(-19), snapshot])
   }, [currentActivities])
 
   const undo = useCallback(() => {
     if (undoStack.length === 0) return
     const prev = undoStack[undoStack.length - 1]
-    setUndoStack(s => s.slice(0, -1))
+    setUndoStack((s) => s.slice(0, -1))
     reorderActivities(prev)
   }, [undoStack, reorderActivities])
 
-  const touchDrag = useTouchDrag({
-    onReorder: (fromIndex, toIndex) => {
-      const newActivities = [...currentActivities]
-      const [draggedItem] = newActivities.splice(fromIndex, 1)
-      newActivities.splice(toIndex, 0, draggedItem)
-      reorderActivities(newActivities)
-    },
-  })
+  // --- Resize active tracking ---
+  const [resizingId, setResizingId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 60000) // Update every minute
-    return () => clearInterval(interval)
-  }, [])
+  // --- Drag state for reordering ---
+  const [dragState, setDragState] = useState<{
+    activityId: string
+    ghostTop: number
+    ghostHeight: number
+    dropTargetId: string | null // id of the activity we'd insert BEFORE
+  } | null>(null)
+
+  // --- Gesture tracking ---
+  const gestureRef = useRef<{
+    type: "drag" | "resize"
+    activityId: string
+    edge?: "top" | "bottom"
+    startY: number
+    initialOffsetInBlock: number
+    startTop: number
+    startHeight: number
+    pointerId: number
+  } | null>(null)
+  const autoScrollRef = useRef<number>(0)
+
+  // Find the drop target: which activity would the dragged block go before?
+  const findDropTarget = useCallback(
+    (dragId: string, ghostCenterY: number): string | null => {
+      // Go through activities in order, find where the ghost center falls
+      for (const a of currentActivities) {
+        if (a.id === dragId) continue
+        const l = layout.get(a.id)
+        if (!l) continue
+        const midpoint = l.top + l.height / 2
+        if (ghostCenterY < midpoint) {
+          return a.id // insert before this activity
+        }
+      }
+      return null // insert at end
+    },
+    [currentActivities, layout],
+  )
+
+  const onGesturePointerMove = useCallback(
+    (e: PointerEvent) => {
+      const g = gestureRef.current
+      if (!g || !timelineRef.current) return
+      e.preventDefault()
+
+      const rect = timelineRef.current.getBoundingClientRect()
+      const scrollTop = timelineRef.current.scrollTop
+      const relY = e.clientY - rect.top + scrollTop
+
+      if (g.type === "drag") {
+        // Move the ghost
+        const ghostTop = Math.max(0, relY - g.initialOffsetInBlock)
+        const ghostHeight = g.startHeight
+        const ghostCenter = ghostTop + ghostHeight / 2
+        const dropTargetId = findDropTarget(g.activityId, ghostCenter)
+
+        setDragState({
+          activityId: g.activityId,
+          ghostTop,
+          ghostHeight,
+          dropTargetId,
+        })
+
+        // Auto-scroll when pointer is near the viewport edges
+        const EDGE_ZONE = 60 // px from edge to trigger scroll
+        const SCROLL_SPEED = 8 // px per frame
+        const pointerInViewport = e.clientY - rect.top
+        const el = timelineRef.current!
+
+        cancelAnimationFrame(autoScrollRef.current)
+
+        if (pointerInViewport < EDGE_ZONE) {
+          // Scroll up
+          const tick = () => {
+            el.scrollTop = Math.max(0, el.scrollTop - SCROLL_SPEED)
+            autoScrollRef.current = requestAnimationFrame(tick)
+          }
+          autoScrollRef.current = requestAnimationFrame(tick)
+        } else if (pointerInViewport > rect.height - EDGE_ZONE) {
+          // Scroll down
+          const tick = () => {
+            el.scrollTop = Math.min(el.scrollHeight - el.clientHeight, el.scrollTop + SCROLL_SPEED)
+            autoScrollRef.current = requestAnimationFrame(tick)
+          }
+          autoScrollRef.current = requestAnimationFrame(tick)
+        }
+      } else if (g.type === "resize") {
+        const activity = currentActivities.find((a) => a.id === g.activityId)
+        if (!activity || !activity.startTime) return
+
+        if (g.edge === "bottom") {
+          const currentTop = g.startTop
+          const newHeightPx = relY - currentTop
+          const newDuration = Math.max(MIN_DURATION, pxToMinutes(newHeightPx))
+          updateActivity(activity.id, { duration: newDuration })
+        } else {
+          // Top edge: move start, keep end fixed
+          const endMin =
+            activity.startTime.getHours() * 60 +
+            activity.startTime.getMinutes() +
+            activity.duration
+          let newStartMin = pxToMinutes(relY)
+          newStartMin = Math.max(0, Math.min(endMin - MIN_DURATION, newStartMin))
+          const newDuration = endMin - newStartMin
+
+          const newStart = new Date(activity.startTime)
+          newStart.setHours(0, 0, 0, 0)
+          newStart.setMinutes(newStartMin, 0, 0)
+          updateActivity(activity.id, { startTime: newStart, duration: newDuration })
+        }
+      }
+    },
+    [currentActivities, updateActivity, findDropTarget],
+  )
+
+  const onGesturePointerUp = useCallback(
+    (e: PointerEvent) => {
+      const g = gestureRef.current
+      gestureRef.current = null
+
+      cancelAnimationFrame(autoScrollRef.current)
+      setResizingId(null)
+      document.removeEventListener("pointermove", onGesturePointerMove)
+      document.removeEventListener("pointerup", onGesturePointerUp)
+      document.body.style.overflow = ""
+      document.documentElement.style.overflow = ""
+
+      if (g?.type === "drag" && dragState) {
+        // Perform the reorder
+        const { activityId, dropTargetId } = dragState
+        setDragState(null)
+
+        const draggedIdx = currentActivities.findIndex((a) => a.id === activityId)
+        if (draggedIdx === -1) return
+
+        const dragged = currentActivities[draggedIdx]
+        const without = currentActivities.filter((a) => a.id !== activityId)
+
+        let insertIdx: number
+        if (dropTargetId === null) {
+          // Insert at end
+          insertIdx = without.length
+        } else {
+          insertIdx = without.findIndex((a) => a.id === dropTargetId)
+          if (insertIdx === -1) insertIdx = without.length
+        }
+
+        const reordered = [...without.slice(0, insertIdx), dragged, ...without.slice(insertIdx)]
+
+        // Recalculate times: first activity keeps its start, rest cascade
+        const result: Activity[] = []
+        let nextStart = reordered[0]?.startTime || new Date()
+
+        for (let i = 0; i < reordered.length; i++) {
+          const a = reordered[i]
+          const startTime = i === 0 ? nextStart : new Date(nextStart)
+          const endTime = new Date(startTime.getTime() + a.duration * 60000)
+          result.push({ ...a, startTime, endTime })
+          nextStart = endTime
+        }
+
+        reorderActivities(result)
+      } else {
+        setDragState(null)
+      }
+    },
+    [onGesturePointerMove, dragState, currentActivities, reorderActivities],
+  )
+
+  // Store latest callbacks in refs so event listeners always use fresh closures
+  const onMoveRef = useRef(onGesturePointerMove)
+  const onUpRef = useRef(onGesturePointerUp)
+  onMoveRef.current = onGesturePointerMove
+  onUpRef.current = onGesturePointerUp
+
+  const stableMove = useCallback((e: PointerEvent) => onMoveRef.current(e), [])
+  const stableUp = useCallback((e: PointerEvent) => onUpRef.current(e), [])
+
+  const startDrag = useCallback(
+    (activityId: string, e: React.PointerEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+      const activity = currentActivities.find((a) => a.id === activityId)
+      if (!activity || !timelineRef.current) return
+      saveSnapshot()
+
+      const l = layout.get(activityId)
+      if (!l) return
+
+      const rect = timelineRef.current.getBoundingClientRect()
+      const scrollTop = timelineRef.current.scrollTop
+      const relY = e.clientY - rect.top + scrollTop
+      const initialOffsetInBlock = relY - l.top
+
+      gestureRef.current = {
+        type: "drag",
+        activityId,
+        startY: relY,
+        initialOffsetInBlock,
+        startTop: l.top,
+        startHeight: l.height,
+        pointerId: e.pointerId,
+      }
+
+      setDragState({
+        activityId,
+        ghostTop: l.top,
+        ghostHeight: l.height,
+        dropTargetId: null,
+      })
+
+      document.body.style.overflow = "hidden"
+      document.documentElement.style.overflow = "hidden"
+      document.addEventListener("pointermove", stableMove)
+      document.addEventListener("pointerup", stableUp)
+    },
+    [currentActivities, layout, saveSnapshot, stableMove, stableUp],
+  )
+
+  const startResize = useCallback(
+    (activityId: string, edge: "top" | "bottom", e: React.PointerEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+      const activity = currentActivities.find((a) => a.id === activityId)
+      if (!activity || !timelineRef.current) return
+      saveSnapshot()
+      setResizingId(activityId)
+
+      const l = layout.get(activityId)
+      if (!l) return
+
+      gestureRef.current = {
+        type: "resize",
+        activityId,
+        edge,
+        startY: e.clientY,
+        initialOffsetInBlock: 0,
+        startTop: l.top,
+        startHeight: l.height,
+        pointerId: e.pointerId,
+      }
+
+      document.body.style.overflow = "hidden"
+      document.documentElement.style.overflow = "hidden"
+      document.addEventListener("pointermove", stableMove)
+      document.addEventListener("pointerup", stableUp)
+    },
+    [currentActivities, layout, saveSnapshot, stableMove, stableUp],
+  )
 
   // Auto-scroll to current time on mount
   useEffect(() => {
     if (currentActivities.length > 0 && timelineRef.current) {
-      const now = currentTime
-      const currentHour = now.getHours()
-      const currentMinute = now.getMinutes()
-      
-      // Calculate position: each hour = 100px, each minute = 100/60px
-      const position = currentHour * 100 + (currentMinute * 100) / 60
-      
-      timelineRef.current.scrollTo({
-        top: Math.max(0, position - 200), // Center current time
-        behavior: 'smooth'
-      })
+      const now = new Date()
+      const pos = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
+      timelineRef.current.scrollTo({ top: Math.max(0, pos - 200), behavior: "smooth" })
     }
-  }, [currentActivities.length, currentTime])
+  }, [currentActivities.length])
 
-  const handleDragStart = (index: number) => {
-    setDraggedIndex(index)
-  }
+  const handleSelect = useCallback(
+    (id: string) => setSelectedActivity((prev) => (prev === id ? null : id)),
+    [],
+  )
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    setDragOverIndex(index)
-  }
-
-  const handleDrop = (index: number) => {
-    if (draggedIndex === null) return
-
-    const newActivities = [...currentActivities]
-    const [draggedItem] = newActivities.splice(draggedIndex, 1)
-    newActivities.splice(index, 0, draggedItem)
-
-    reorderActivities(newActivities)
-    setDraggedIndex(null)
-    setDragOverIndex(null)
-  }
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null)
-    setDragOverIndex(null)
-  }
-
-  const handleDurationChange = (id: string, change: number) => {
-    const activity = currentActivities.find((a) => a.id === id)
-    if (!activity) return
-
-    const newDuration = Math.max(15, activity.duration + change) // Minimum 15 minutes
-    updateActivity(id, { duration: newDuration })
-  }
-
-  const formatTime = (date?: Date) => {
-    if (!date || isNaN(date.getTime())) return ""
-    return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
-  }
-
-  const getActivityPosition = (activity: any) => {
-    if (!activity.startTime) return 0
-    
-    const startHour = activity.startTime.getHours()
-    const startMinute = activity.startTime.getMinutes()
-    
-    // Each hour = 100px, each minute = 100/60px
-    return startHour * 100 + (startMinute * 100) / 60
-  }
-
-  // Drag-move state for activity blocks (not resize)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
-  const dragOffsetRef = useRef<number>(0)
-
-    const handleBlockDragStart = (activityId: string, e: React.MouseEvent | React.TouchEvent) => {
-      e.stopPropagation()
-      const activity = currentActivities.find(a => a.id === activityId)
-      if (!activity || !timelineRef.current) return
-      saveSnapshot()
-
-    const clientY = 'nativeEvent' in e && 'touches' in (e as any).nativeEvent && (e as any).nativeEvent.touches?.length
-      ? (e as any).nativeEvent.touches[0].clientY
-      : (e as React.MouseEvent).clientY
-
-    const timelineRect = timelineRef.current.getBoundingClientRect()
-    const scrollTop = timelineRef.current.scrollTop
-    const activityTopPx = getActivityPosition(activity)
-    dragOffsetRef.current = clientY - timelineRect.top + scrollTop - activityTopPx
-
-    setDraggingId(activityId)
-
-    // Block scroll during drag
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-  }
-
-  const handleBlockDragMove = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!draggingId || !timelineRef.current) return
-    e.preventDefault()
-
-    const activity = currentActivities.find(a => a.id === draggingId)
-    if (!activity || !activity.startTime) return
-
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-      const timelineRect = timelineRef.current.getBoundingClientRect()
-      const scrollTop = timelineRef.current.scrollTop
-      const relativeY = clientY - timelineRect.top + scrollTop
-      const targetTopPx = relativeY - dragOffsetRef.current
-
-    const totalMinutes = 24 * 60
-    const pxToMinutes = (px: number) => Math.round((px * 60) / 100)
-    let newStartMinutes = pxToMinutes(targetTopPx)
-    // Round to 5 minutes grid
-    newStartMinutes = Math.round(newStartMinutes / 5) * 5
-    // Clamp so block stays within day
-    newStartMinutes = Math.max(0, Math.min(totalMinutes - activity.duration, newStartMinutes))
-
-    const base = new Date(activity.startTime)
-    base.setHours(0, 0, 0, 0)
-    base.setMinutes(newStartMinutes, 0, 0)
-
-    updateActivity(activity.id, { startTime: base })
-  }, [draggingId, currentActivities, updateActivity])
-
-  const handleBlockDragEnd = useCallback(() => {
-    if (!draggingId) return
-    setDraggingId(null)
-    document.body.style.overflow = ''
-    document.documentElement.style.overflow = ''
-  }, [draggingId])
-
-  useEffect(() => {
-    if (draggingId) {
-      document.addEventListener('mousemove', handleBlockDragMove as any, { passive: false })
-      document.addEventListener('mouseup', handleBlockDragEnd as any)
-      document.addEventListener('touchmove', handleBlockDragMove as any, { passive: false })
-      document.addEventListener('touchend', handleBlockDragEnd as any)
-      return () => {
-        document.removeEventListener('mousemove', handleBlockDragMove as any)
-        document.removeEventListener('mouseup', handleBlockDragEnd as any)
-        document.removeEventListener('touchmove', handleBlockDragMove as any)
-        document.removeEventListener('touchend', handleBlockDragEnd as any)
-      }
-    }
-  }, [draggingId, handleBlockDragMove, handleBlockDragEnd])
-
-  const getActivityHeight = (activity: any) => {
-    // Each minute = 100/60px height, minimum 30px to prevent overlap
-    return Math.max(30, (activity.duration * 100) / 60)
-  }
-
-  const getCurrentTimePosition = () => {
-    const currentHour = currentTime.getHours()
-    const currentMinute = currentTime.getMinutes()
-    
-    return currentHour * 100 + (currentMinute * 100) / 60
-  }
-
-  const handleActivityClick = (activityId: string) => {
-    setSelectedActivity(selectedActivity === activityId ? null : activityId)
-  }
-
-    const handleResizeStart = (activityId: string, edge: 'top' | 'bottom', e: React.MouseEvent | React.TouchEvent) => {
-      e.stopPropagation()
-      e.preventDefault()
-
-      const activity = currentActivities.find(a => a.id === activityId)
-      if (!activity || !timelineRef.current) return
-      saveSnapshot()
-
-    const clientY = 'nativeEvent' in e && 'touches' in (e as any).nativeEvent && (e as any).nativeEvent.touches?.length
-      ? (e as any).nativeEvent.touches[0].clientY
-      : (e as React.MouseEvent).clientY
-
-    const timelineRect = timelineRef.current.getBoundingClientRect()
-    const scrollTop = timelineRef.current.scrollTop
-    const activityTopPx = getActivityPosition(activity)
-    const activityBottomPx = activityTopPx + getActivityHeight(activity)
-
-    if (edge === 'top') {
-      resizeOffsetRef.current = clientY - timelineRect.top + scrollTop - activityTopPx
-    } else {
-      resizeOffsetRef.current = clientY - timelineRect.top + scrollTop - activityBottomPx
-    }
-
-    setResizeEdge(edge)
-    setIsResizing(activityId)
-    
-    // Block scroll during resize
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-  }
-
-  const handleResize = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isResizing) return
-    
-    // Prevent default to stop scrolling
-    e.preventDefault()
-    
-    const activity = currentActivities.find(a => a.id === isResizing)
-    if (!activity || !activity.startTime) return
-
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-    const timelineRect = timelineRef.current?.getBoundingClientRect()
-    if (!timelineRect || !timelineRef.current) return
-
-    const scrollTop = timelineRef.current.scrollTop
-    const relativeY = clientY - timelineRect.top + scrollTop - resizeOffsetRef.current
-    const pxToMinutes = (px: number) => Math.round((px * 60) / 100 / 5) * 5 // snap to 5 min
-
-    if (resizeEdge === 'bottom') {
-      // Bottom edge: change duration, keep startTime
-      const activityTopPx = getActivityPosition(activity)
-      const newDurationMinutes = pxToMinutes(relativeY - activityTopPx)
-      updateActivity(activity.id, { duration: Math.max(5, newDurationMinutes) })
-    } else {
-      // Top edge: change startTime, adjust duration to keep endTime
-      const activityBottomPx = getActivityPosition(activity) + getActivityHeight(activity)
-      const newTopMinutes = pxToMinutes(relativeY)
-      const clampedTop = Math.max(0, Math.min(newTopMinutes, 24 * 60 - 5))
-      const oldEndMinutes = activity.startTime.getHours() * 60 + activity.startTime.getMinutes() + activity.duration
-      const newDuration = oldEndMinutes - clampedTop
-
-      if (newDuration >= 5) {
-        const newStart = new Date(activity.startTime)
-        newStart.setHours(0, 0, 0, 0)
-        newStart.setMinutes(clampedTop, 0, 0)
-        updateActivity(activity.id, { startTime: newStart, duration: newDuration })
-      }
-    }
-  }, [isResizing, resizeEdge, currentActivities, updateActivity])
-
-  const handleResizeEnd = useCallback(() => {
-    setIsResizing(null)
-    
-    // Restore scroll after resize
-    document.body.style.overflow = ''
-    document.documentElement.style.overflow = ''
-  }, [])
-
-  useEffect(() => {
-    if (isResizing) {
-      document.addEventListener('mousemove', handleResize, { passive: false })
-      document.addEventListener('mouseup', handleResizeEnd)
-      document.addEventListener('touchmove', handleResize, { passive: false })
-      document.addEventListener('touchend', handleResizeEnd)
-      
-      return () => {
-        document.removeEventListener('mousemove', handleResize)
-        document.removeEventListener('mouseup', handleResizeEnd)
-        document.removeEventListener('touchmove', handleResize)
-        document.removeEventListener('touchend', handleResizeEnd)
-      }
-    }
-  }, [isResizing, handleResize, handleResizeEnd])
-
-  // Generate time scale (24 hours)
-  const timeScale = Array.from({ length: 24 }, (_, i) => i)
-
+  // --- Empty state ---
   if (currentActivities.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Card className="p-8 text-center space-y-4 max-w-md">
           <Calendar className="h-12 w-12 mx-auto text-muted-foreground" />
           <h2 className="text-xl font-semibold text-foreground">День не начат</h2>
-          <p className="text-muted-foreground">Вернитесь на главный экран и выберите шаблон дня</p>
+          <p className="text-muted-foreground">
+            Вернитесь на главный экран и выберите шаблон дня
+          </p>
           <Button onClick={() => router.push("/")} className="w-full">
             На главную
           </Button>
@@ -329,6 +663,14 @@ export default function TimelineScreen() {
       </div>
     )
   }
+
+  const selectedActivityData = selectedActivity
+    ? currentActivities.find((a) => a.id === selectedActivity)
+    : null
+
+  const draggedActivity = dragState
+    ? currentActivities.find((a) => a.id === dragState.activityId)
+    : null
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -341,231 +683,67 @@ export default function TimelineScreen() {
       {/* Timeline */}
       <main className="flex-1 overflow-y-auto" ref={timelineRef}>
         <div className="flex">
-          {/* Time Scale */}
-          <div className="w-12 bg-muted/30 border-r border-border flex-shrink-0">
-            <div className="relative h-[2400px]"> {/* 24 hours * 100px */}
-              {timeScale.map((hour) => (
-                <div key={hour} className="absolute w-full" style={{ top: `${hour * 100}px` }}>
-                  <div className="flex items-center h-6 px-1.5">
-                    <span className="text-[10px] font-medium text-muted-foreground">
-                      {hour.toString().padStart(2, '0')}:00
-                    </span>
-                  </div>
-                  
-                  {/* Minute marks */}
-                  {[15, 30, 45].map((minute) => (
-                    <div
-                      key={minute}
-                      className="absolute w-1.5 h-px bg-border"
-                      style={{ 
-                        top: `${(minute * 100) / 60}px`,
-                        left: '9px'
-                      }}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
+          <TimeScale />
 
           {/* Activities Track */}
-          <div 
-            className="flex-1 relative"
-            style={{ height: '2400px' }} // 24 hours * 100px
-          >
-            {/* Current Time Indicator */}
-            <div
-              className="absolute left-0 right-0 z-20 pointer-events-none"
-              style={{ top: `${getCurrentTimePosition()}px` }}
-            >
-              <div className="flex items-center">
-                <div className="w-2 h-2 rounded-full bg-primary" />
-                <div className="flex-1 h-0.5 bg-primary" />
-                <span className="text-xs font-medium text-primary ml-2 bg-background px-1 rounded">
-                  {formatTime(currentTime)}
-                </span>
-              </div>
-            </div>
+          <div className="flex-1 relative" style={{ height: `${TOTAL_HEIGHT}px` }}>
+            <CurrentTimeIndicator />
 
-            {/* Activities */}
-            {currentActivities.map((activity, index) => {
-              const position = getActivityPosition(activity)
-              const height = getActivityHeight(activity)
-              const isSelected = selectedActivity === activity.id
-              const isResizingThis = isResizing === activity.id
-              
-              // Calculate minimum height for different content levels
-              const minHeightForName = 15 // Just name
-              const minHeightForTime = 25 // Name + time
-              const minHeightForDuration = 35 // Name + time + duration
-              
-              // Determine what content to show based on height
-              const showTime = height >= minHeightForTime
-              const showDuration = height >= minHeightForDuration
-              const showName = height >= minHeightForName
-              
-              // For compact view: when duration < 60 minutes (100px height)
-              const isCompactView = activity.duration < 60 && height >= minHeightForName
+            {currentActivities.map((activity) => {
+              const l = layout.get(activity.id)
+              if (!l) return null
+              const isBeingDragged = dragState?.activityId === activity.id
 
               return (
                 <div
                   key={activity.id}
-                  className="absolute left-0 right-0 z-10"
-                  style={{ 
-                    top: `${position}px`,
-                    height: `${height}px`
-                  }}
+                  style={{ opacity: isBeingDragged ? 0.25 : 1 }}
                 >
-                    <Card
-                      className={cn(
-                        "h-full cursor-pointer transition-all hover:shadow-md relative overflow-visible",
-                        isSelected && "ring-2 ring-primary shadow-lg",
-                        isResizingThis && "ring-2 ring-blue-500"
-                      )}
-                      onClick={() => handleActivityClick(activity.id)}
-                      onMouseDown={(e) => handleBlockDragStart(activity.id, e)}
-                      onTouchStart={(e) => handleBlockDragStart(activity.id, e)}
-                    >
-                      <div className="p-1 h-full flex flex-col justify-center overflow-hidden">
-                        {isCompactView ? (
-                          // Compact view: everything in one line
-                          <div className="flex items-center gap-1">
-                            <GripVertical className="h-2 w-2 text-muted-foreground flex-shrink-0" />
-                            <h3 className="text-xs font-medium text-foreground truncate flex-1">
-                              {activity.name}
-                            </h3>
-                            <div className="text-[10px] text-muted-foreground whitespace-nowrap">
-                              {formatTime(activity.startTime)}-{formatTime(activity.endTime)}
-                            </div>
-                            <div className="text-[10px] font-medium text-primary whitespace-nowrap ml-1">
-                              {Math.floor(activity.duration / 60)}ч{activity.duration % 60}м
-                            </div>
-                          </div>
-                        ) : (
-                          // Normal view: stacked content
-                          <>
-                            {showName && (
-                              <div className="flex items-center gap-1 mb-0.5">
-                                <GripVertical className="h-2 w-2 text-muted-foreground flex-shrink-0" />
-                                <h3 className="text-xs font-medium text-foreground truncate">
-                                  {activity.name}
-                                </h3>
-                              </div>
-                            )}
-                            
-                            {showTime && (
-                              <div className="text-[10px] text-muted-foreground truncate">
-                                {formatTime(activity.startTime)} - {formatTime(activity.endTime)}
-                              </div>
-                            )}
-                            
-                            {showDuration && (
-                              <div className="text-[10px] font-medium text-primary truncate">
-                                {Math.floor(activity.duration / 60)}ч {activity.duration % 60}м
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      {/* Resize handles - outside overflow-hidden content div */}
-                      <div
-                        className="absolute top-0 left-0 right-0 h-4 cursor-ns-resize bg-transparent hover:bg-primary/20 z-10"
-                        onMouseDown={(e) => handleResizeStart(activity.id, 'top', e)}
-                        onTouchStart={(e) => handleResizeStart(activity.id, 'top', e)}
-                      />
-                      <div
-                        className="absolute bottom-0 left-0 right-0 h-4 cursor-ns-resize bg-transparent hover:bg-primary/20 z-10"
-                        onMouseDown={(e) => handleResizeStart(activity.id, 'bottom', e)}
-                        onTouchStart={(e) => handleResizeStart(activity.id, 'bottom', e)}
-                      />
-                    </Card>
+                  <ActivityBlock
+                    activity={activity}
+                    top={l.top}
+                    height={l.height}
+                    isSelected={selectedActivity === activity.id && !dragState}
+                    isDragTarget={dragState?.dropTargetId === activity.id}
+                    isResizing={resizingId === activity.id}
+                    onSelect={handleSelect}
+                    onDragStart={startDrag}
+                    onResizeStart={startResize}
+                  />
                 </div>
               )
             })}
+
+            {/* Drag ghost */}
+            {dragState && draggedActivity && (
+              <DragGhost
+                activity={draggedActivity}
+                topPx={dragState.ghostTop}
+                heightPx={dragState.ghostHeight}
+              />
+            )}
           </div>
         </div>
       </main>
 
-        {/* Floating Undo Button */}
-        {undoStack.length > 0 && (
-          <button
-            onClick={undo}
-            className="fixed bottom-20 right-4 z-30 w-10 h-10 rounded-full bg-muted/80 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-          >
-            <Undo2 className="h-4 w-4 text-foreground" />
-          </button>
-        )}
+      {/* Floating Undo */}
+      {undoStack.length > 0 && (
+        <button
+          onClick={undo}
+          className="fixed bottom-20 right-4 z-30 w-10 h-10 rounded-full bg-muted/80 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          aria-label="Отменить"
+        >
+          <Undo2 className="h-4 w-4 text-foreground" />
+        </button>
+      )}
 
-        {/* Activity Info Popup */}
-      {selectedActivity && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-6 bg-background">
-            {(() => {
-              const activity = currentActivities.find(a => a.id === selectedActivity)
-              if (!activity) return null
-              
-              return (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
-                    <h3 className="text-lg font-semibold">{activity.name}</h3>
-                  </div>
-                  
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Начало:</span>
-                      <input
-                        type="time"
-                        value={activity.startTime ? activity.startTime.toTimeString().slice(0, 5) : ''}
-                        onChange={(e) => {
-                          const [hours, minutes] = e.target.value.split(':').map(Number)
-                          const newStartTime = new Date(activity.startTime!)
-                          newStartTime.setHours(hours, minutes, 0, 0)
-                          updateActivity(activity.id, { startTime: newStartTime })
-                        }}
-                        className="px-2 py-1 border border-border rounded text-sm"
-                      />
-                    </div>
-                    
-                    <div className="flex flex-col gap-2">
-                      <span className="text-muted-foreground">Длительность (минуты):</span>
-                      <div className="w-full">
-                        <IOSPicker
-                          options={Array.from({ length: 58 }, (_, i) => ({
-                            value: `${(i + 1) * 5}`,
-                            label: `${(i + 1) * 5} мин`
-                          }))}
-                          value={`${activity.duration}`}
-                          onChange={(val) => {
-                            const newDuration = parseInt(val)
-                            updateActivity(activity.id, { duration: newDuration })
-                          }}
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Окончание:</span>
-                      <span>{formatTime(activity.endTime)}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedActivity(null)}
-                      className="ml-auto"
-                    >
-                      Закрыть
-                    </Button>
-                  </div>
-                </div>
-              )
-            })()}
-          </Card>
-        </div>
+      {/* Activity Popup */}
+      {selectedActivityData && (
+        <ActivityPopup
+          activity={selectedActivityData}
+          onClose={() => setSelectedActivity(null)}
+          onUpdate={updateActivity}
+        />
       )}
     </div>
   )
