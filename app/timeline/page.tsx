@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback, memo } from "react"
+import { useEffect, useState, useRef, useCallback, useMemo, memo } from "react"
 import { useDay } from "@/lib/day-context"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -16,23 +16,15 @@ const PX_PER_MINUTE = PX_PER_HOUR / 60
 const TOTAL_HEIGHT = 24 * PX_PER_HOUR
 const SNAP_MINUTES = 5
 const MIN_DURATION = 5
+const MIN_BLOCK_HEIGHT = 36 // minimum visual height for any block
 
-// --- Pure helpers (no React) ---
+// --- Pure helpers ---
 function minutesToPx(minutes: number) {
   return minutes * PX_PER_MINUTE
 }
 
 function pxToMinutes(px: number) {
   return Math.round(px / PX_PER_MINUTE / SNAP_MINUTES) * SNAP_MINUTES
-}
-
-function activityTopPx(a: Activity) {
-  if (!a.startTime) return 0
-  return a.startTime.getHours() * PX_PER_HOUR + a.startTime.getMinutes() * PX_PER_MINUTE
-}
-
-function activityHeightPx(a: Activity) {
-  return Math.max(30, minutesToPx(a.duration))
 }
 
 function formatTime(date?: Date) {
@@ -48,16 +40,34 @@ function formatDuration(minutes: number) {
   return `${h}ч ${m}м`
 }
 
-function getClientY(e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent): number {
-  if ("touches" in e && e.touches.length > 0) return e.touches[0].clientY
-  if ("changedTouches" in e && e.changedTouches.length > 0) return e.changedTouches[0].clientY
-  return (e as MouseEvent).clientY
+// Compute visual layout: top/height for each activity, preventing overlaps
+// Short blocks get minimum height, and subsequent blocks are pushed down
+function computeLayout(activities: Activity[]): Map<string, { top: number; height: number }> {
+  const layout = new Map<string, { top: number; height: number }>()
+  let maxBottom = 0
+
+  for (const a of activities) {
+    if (!a.startTime) continue
+    const naturalTop = a.startTime.getHours() * PX_PER_HOUR + a.startTime.getMinutes() * PX_PER_MINUTE
+    const naturalHeight = minutesToPx(a.duration)
+    const visualHeight = Math.max(MIN_BLOCK_HEIGHT, naturalHeight)
+
+    // Ensure this block doesn't overlap with previous blocks
+    const top = Math.max(naturalTop, maxBottom)
+    layout.set(a.id, { top, height: visualHeight })
+    maxBottom = top + visualHeight + 1 // 1px gap
+  }
+
+  return layout
 }
 
 // --- Activity Block (memoized) ---
 interface ActivityBlockProps {
   activity: Activity
+  top: number
+  height: number
   isSelected: boolean
+  isDragTarget: boolean // visual indicator for drop target
   onSelect: (id: string) => void
   onDragStart: (id: string, e: React.PointerEvent) => void
   onResizeStart: (id: string, edge: "top" | "bottom", e: React.PointerEvent) => void
@@ -65,32 +75,38 @@ interface ActivityBlockProps {
 
 const ActivityBlock = memo(function ActivityBlock({
   activity,
+  top,
+  height,
   isSelected,
+  isDragTarget,
   onSelect,
   onDragStart,
   onResizeStart,
 }: ActivityBlockProps) {
-  const top = activityTopPx(activity)
-  const height = activityHeightPx(activity)
-  const isCompact = activity.duration < 60 && height >= 15
-  const showTime = height >= 25
-  const showDuration = height >= 35
-  const showName = height >= 15
+  const isCompact = height < 60
+  const showTime = height >= 30
+  const showDuration = height >= 45
 
   return (
     <div
-      className="absolute left-1 right-1 z-10"
+      className={cn(
+        "absolute left-1 right-1 z-10 transition-opacity duration-100",
+      )}
       style={{ top: `${top}px`, height: `${height}px` }}
     >
+      {/* Drop indicator line above block */}
+      {isDragTarget && (
+        <div className="absolute -top-1 left-0 right-0 h-0.5 bg-primary rounded-full z-30" />
+      )}
       <Card
         className={cn(
-          "h-full relative overflow-visible touch-none select-none",
+          "h-full relative overflow-hidden touch-none select-none",
           "transition-shadow duration-150",
           isSelected && "ring-2 ring-primary shadow-lg",
         )}
         onClick={() => onSelect(activity.id)}
       >
-        <div className="p-1 h-full flex flex-col justify-center overflow-hidden">
+        <div className="p-1.5 h-full flex flex-col justify-center overflow-hidden">
           {isCompact ? (
             <div className="flex items-center gap-1">
               <span className="text-xs font-medium text-foreground truncate flex-1">
@@ -99,19 +115,17 @@ const ActivityBlock = memo(function ActivityBlock({
               <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                 {formatTime(activity.startTime)}-{formatTime(activity.endTime)}
               </span>
-              <span className="text-[10px] font-medium text-primary whitespace-nowrap ml-1">
+              <span className="text-[10px] font-medium text-primary whitespace-nowrap ml-0.5">
                 {formatDuration(activity.duration)}
               </span>
             </div>
           ) : (
             <>
-              {showName && (
-                <div className="flex items-center gap-1 mb-0.5">
-                  <span className="text-xs font-medium text-foreground truncate">
-                    {activity.name}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-xs font-medium text-foreground truncate">
+                  {activity.name}
+                </span>
+              </div>
               {showTime && (
                 <div className="text-[10px] text-muted-foreground truncate">
                   {formatTime(activity.startTime)} - {formatTime(activity.endTime)}
@@ -128,20 +142,24 @@ const ActivityBlock = memo(function ActivityBlock({
 
         {/* Drag handle -- center area */}
         <div
-          className="absolute inset-x-0 top-4 bottom-4 cursor-grab active:cursor-grabbing z-10"
+          className="absolute inset-x-0 top-3 bottom-3 cursor-grab active:cursor-grabbing z-10"
           onPointerDown={(e) => onDragStart(activity.id, e)}
         />
 
-        {/* Resize: top */}
+        {/* Resize: top edge */}
         <div
-          className="absolute top-0 left-0 right-0 h-4 cursor-ns-resize z-20 hover:bg-primary/10"
+          className="absolute top-0 left-0 right-0 h-3 cursor-ns-resize z-20 flex items-start justify-center"
           onPointerDown={(e) => onResizeStart(activity.id, "top", e)}
-        />
-        {/* Resize: bottom */}
+        >
+          <div className="w-8 h-0.5 rounded-full bg-muted-foreground/30 mt-1" />
+        </div>
+        {/* Resize: bottom edge */}
         <div
-          className="absolute bottom-0 left-0 right-0 h-4 cursor-ns-resize z-20 hover:bg-primary/10"
+          className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize z-20 flex items-end justify-center"
           onPointerDown={(e) => onResizeStart(activity.id, "bottom", e)}
-        />
+        >
+          <div className="w-8 h-0.5 rounded-full bg-muted-foreground/30 mb-1" />
+        </div>
       </Card>
     </div>
   )
@@ -187,10 +205,7 @@ function CurrentTimeIndicator() {
   const top = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
 
   return (
-    <div
-      className="absolute left-0 right-0 z-20 pointer-events-none"
-      style={{ top: `${top}px` }}
-    >
+    <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: `${top}px` }}>
       <div className="flex items-center">
         <div className="w-2 h-2 rounded-full bg-primary" />
         <div className="flex-1 h-0.5 bg-primary" />
@@ -253,7 +268,7 @@ function ActivityPopup({ activity, onClose, onUpdate }: ActivityPopupProps) {
                     })
                   }
                 >
-                  -
+                  {"-"}
                 </Button>
                 <span className="text-sm font-medium w-16 text-center text-foreground">
                   {formatDuration(activity.duration)}
@@ -266,7 +281,7 @@ function ActivityPopup({ activity, onClose, onUpdate }: ActivityPopupProps) {
                     onUpdate(activity.id, { duration: activity.duration + SNAP_MINUTES })
                   }
                 >
-                  +
+                  {"+"}
                 </Button>
               </div>
             </div>
@@ -288,12 +303,37 @@ function ActivityPopup({ activity, onClose, onUpdate }: ActivityPopupProps) {
   )
 }
 
+// --- Drag ghost overlay ---
+interface DragGhostProps {
+  activity: Activity
+  topPx: number
+  heightPx: number
+}
+
+function DragGhost({ activity, topPx, heightPx }: DragGhostProps) {
+  return (
+    <div
+      className="absolute left-1 right-1 z-40 pointer-events-none opacity-60"
+      style={{ top: `${topPx}px`, height: `${heightPx}px` }}
+    >
+      <Card className="h-full ring-2 ring-primary shadow-xl bg-primary/10">
+        <div className="p-1.5 h-full flex items-center">
+          <span className="text-xs font-medium text-foreground truncate">{activity.name}</span>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
 // --- Main Timeline ---
 export default function TimelineScreen() {
   const { currentActivities, updateActivity, reorderActivities } = useDay()
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  // Layout computation: prevents short-block overlap
+  const layout = useMemo(() => computeLayout(currentActivities), [currentActivities])
 
   // --- Undo ---
   const [undoStack, setUndoStack] = useState<Activity[][]>([])
@@ -313,14 +353,43 @@ export default function TimelineScreen() {
     reorderActivities(prev)
   }, [undoStack, reorderActivities])
 
-  // --- Drag / Resize via PointerEvents (ref-based, no re-renders during gesture) ---
+  // --- Drag state for reordering ---
+  const [dragState, setDragState] = useState<{
+    activityId: string
+    ghostTop: number
+    ghostHeight: number
+    dropTargetId: string | null // id of the activity we'd insert BEFORE
+  } | null>(null)
+
+  // --- Gesture tracking ---
   const gestureRef = useRef<{
     type: "drag" | "resize"
     activityId: string
     edge?: "top" | "bottom"
-    offsetY: number
+    startY: number
+    initialOffsetInBlock: number // for drag: pointer offset within the block
+    startTop: number
+    startHeight: number
     pointerId: number
   } | null>(null)
+
+  // Find the drop target: which activity would the dragged block go before?
+  const findDropTarget = useCallback(
+    (dragId: string, ghostCenterY: number): string | null => {
+      // Go through activities in order, find where the ghost center falls
+      for (const a of currentActivities) {
+        if (a.id === dragId) continue
+        const l = layout.get(a.id)
+        if (!l) continue
+        const midpoint = l.top + l.height / 2
+        if (ghostCenterY < midpoint) {
+          return a.id // insert before this activity
+        }
+      }
+      return null // insert at end
+    },
+    [currentActivities, layout],
+  )
 
   const onGesturePointerMove = useCallback(
     (e: PointerEvent) => {
@@ -328,27 +397,30 @@ export default function TimelineScreen() {
       if (!g || !timelineRef.current) return
       e.preventDefault()
 
-      const activity = currentActivities.find((a) => a.id === g.activityId)
-      if (!activity || !activity.startTime) return
-
       const rect = timelineRef.current.getBoundingClientRect()
       const scrollTop = timelineRef.current.scrollTop
       const relY = e.clientY - rect.top + scrollTop
 
       if (g.type === "drag") {
-        const targetTopPx = relY - g.offsetY
-        let newStartMin = pxToMinutes(targetTopPx)
-        newStartMin = Math.max(0, Math.min(24 * 60 - activity.duration, newStartMin))
+        // Move the ghost
+        const ghostTop = Math.max(0, relY - g.initialOffsetInBlock)
+        const ghostHeight = g.startHeight
+        const ghostCenter = ghostTop + ghostHeight / 2
+        const dropTargetId = findDropTarget(g.activityId, ghostCenter)
 
-        const newStart = new Date(activity.startTime)
-        newStart.setHours(0, 0, 0, 0)
-        newStart.setMinutes(newStartMin, 0, 0)
-        updateActivity(activity.id, { startTime: newStart })
+        setDragState({
+          activityId: g.activityId,
+          ghostTop,
+          ghostHeight,
+          dropTargetId,
+        })
       } else if (g.type === "resize") {
-        const currentTop = activityTopPx(activity)
+        const activity = currentActivities.find((a) => a.id === g.activityId)
+        if (!activity || !activity.startTime) return
 
         if (g.edge === "bottom") {
-          const newHeightPx = relY - g.offsetY - currentTop
+          const currentTop = g.startTop
+          const newHeightPx = relY - currentTop
           const newDuration = Math.max(MIN_DURATION, pxToMinutes(newHeightPx))
           updateActivity(activity.id, { duration: newDuration })
         } else {
@@ -357,7 +429,7 @@ export default function TimelineScreen() {
             activity.startTime.getHours() * 60 +
             activity.startTime.getMinutes() +
             activity.duration
-          let newStartMin = pxToMinutes(relY - g.offsetY)
+          let newStartMin = pxToMinutes(relY)
           newStartMin = Math.max(0, Math.min(endMin - MIN_DURATION, newStartMin))
           const newDuration = endMin - newStartMin
 
@@ -368,19 +440,69 @@ export default function TimelineScreen() {
         }
       }
     },
-    [currentActivities, updateActivity],
+    [currentActivities, updateActivity, findDropTarget],
   )
 
   const onGesturePointerUp = useCallback(
     (e: PointerEvent) => {
+      const g = gestureRef.current
       gestureRef.current = null
+
       document.removeEventListener("pointermove", onGesturePointerMove)
       document.removeEventListener("pointerup", onGesturePointerUp)
       document.body.style.overflow = ""
       document.documentElement.style.overflow = ""
+
+      if (g?.type === "drag" && dragState) {
+        // Perform the reorder
+        const { activityId, dropTargetId } = dragState
+        setDragState(null)
+
+        const draggedIdx = currentActivities.findIndex((a) => a.id === activityId)
+        if (draggedIdx === -1) return
+
+        const dragged = currentActivities[draggedIdx]
+        const without = currentActivities.filter((a) => a.id !== activityId)
+
+        let insertIdx: number
+        if (dropTargetId === null) {
+          // Insert at end
+          insertIdx = without.length
+        } else {
+          insertIdx = without.findIndex((a) => a.id === dropTargetId)
+          if (insertIdx === -1) insertIdx = without.length
+        }
+
+        const reordered = [...without.slice(0, insertIdx), dragged, ...without.slice(insertIdx)]
+
+        // Recalculate times: first activity keeps its start, rest cascade
+        const result: Activity[] = []
+        let nextStart = reordered[0]?.startTime || new Date()
+
+        for (let i = 0; i < reordered.length; i++) {
+          const a = reordered[i]
+          const startTime = i === 0 ? nextStart : new Date(nextStart)
+          const endTime = new Date(startTime.getTime() + a.duration * 60000)
+          result.push({ ...a, startTime, endTime })
+          nextStart = endTime
+        }
+
+        reorderActivities(result)
+      } else {
+        setDragState(null)
+      }
     },
-    [onGesturePointerMove],
+    [onGesturePointerMove, dragState, currentActivities, reorderActivities],
   )
+
+  // Store latest callbacks in refs so event listeners always use fresh closures
+  const onMoveRef = useRef(onGesturePointerMove)
+  const onUpRef = useRef(onGesturePointerUp)
+  onMoveRef.current = onGesturePointerMove
+  onUpRef.current = onGesturePointerUp
+
+  const stableMove = useCallback((e: PointerEvent) => onMoveRef.current(e), [])
+  const stableUp = useCallback((e: PointerEvent) => onUpRef.current(e), [])
 
   const startDrag = useCallback(
     (activityId: string, e: React.PointerEvent) => {
@@ -390,17 +512,37 @@ export default function TimelineScreen() {
       if (!activity || !timelineRef.current) return
       saveSnapshot()
 
+      const l = layout.get(activityId)
+      if (!l) return
+
       const rect = timelineRef.current.getBoundingClientRect()
       const scrollTop = timelineRef.current.scrollTop
-      const offsetY = e.clientY - rect.top + scrollTop - activityTopPx(activity)
+      const relY = e.clientY - rect.top + scrollTop
+      const initialOffsetInBlock = relY - l.top
 
-      gestureRef.current = { type: "drag", activityId, offsetY, pointerId: e.pointerId }
+      gestureRef.current = {
+        type: "drag",
+        activityId,
+        startY: relY,
+        initialOffsetInBlock,
+        startTop: l.top,
+        startHeight: l.height,
+        pointerId: e.pointerId,
+      }
+
+      setDragState({
+        activityId,
+        ghostTop: l.top,
+        ghostHeight: l.height,
+        dropTargetId: null,
+      })
+
       document.body.style.overflow = "hidden"
       document.documentElement.style.overflow = "hidden"
-      document.addEventListener("pointermove", onGesturePointerMove)
-      document.addEventListener("pointerup", onGesturePointerUp)
+      document.addEventListener("pointermove", stableMove)
+      document.addEventListener("pointerup", stableUp)
     },
-    [currentActivities, saveSnapshot, onGesturePointerMove, onGesturePointerUp],
+    [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
 
   const startResize = useCallback(
@@ -411,20 +553,26 @@ export default function TimelineScreen() {
       if (!activity || !timelineRef.current) return
       saveSnapshot()
 
-      const rect = timelineRef.current.getBoundingClientRect()
-      const scrollTop = timelineRef.current.scrollTop
-      const top = activityTopPx(activity)
-      const bottom = top + activityHeightPx(activity)
-      const anchorPx = edge === "top" ? top : bottom
-      const offsetY = e.clientY - rect.top + scrollTop - anchorPx
+      const l = layout.get(activityId)
+      if (!l) return
 
-      gestureRef.current = { type: "resize", activityId, edge, offsetY, pointerId: e.pointerId }
+      gestureRef.current = {
+        type: "resize",
+        activityId,
+        edge,
+        startY: e.clientY,
+        initialOffsetInBlock: 0,
+        startTop: l.top,
+        startHeight: l.height,
+        pointerId: e.pointerId,
+      }
+
       document.body.style.overflow = "hidden"
       document.documentElement.style.overflow = "hidden"
-      document.addEventListener("pointermove", onGesturePointerMove)
-      document.addEventListener("pointerup", onGesturePointerUp)
+      document.addEventListener("pointermove", stableMove)
+      document.addEventListener("pointerup", stableUp)
     },
-    [currentActivities, saveSnapshot, onGesturePointerMove, onGesturePointerUp],
+    [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
 
   // Auto-scroll to current time on mount
@@ -463,6 +611,10 @@ export default function TimelineScreen() {
     ? currentActivities.find((a) => a.id === selectedActivity)
     : null
 
+  const draggedActivity = dragState
+    ? currentActivities.find((a) => a.id === dragState.activityId)
+    : null
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -480,16 +632,34 @@ export default function TimelineScreen() {
           <div className="flex-1 relative" style={{ height: `${TOTAL_HEIGHT}px` }}>
             <CurrentTimeIndicator />
 
-            {currentActivities.map((activity) => (
-              <ActivityBlock
-                key={activity.id}
-                activity={activity}
-                isSelected={selectedActivity === activity.id}
-                onSelect={handleSelect}
-                onDragStart={startDrag}
-                onResizeStart={startResize}
+            {currentActivities.map((activity) => {
+              const l = layout.get(activity.id)
+              if (!l) return null
+              const isBeingDragged = dragState?.activityId === activity.id
+
+              return (
+                <ActivityBlock
+                  key={activity.id}
+                  activity={activity}
+                  top={l.top}
+                  height={l.height}
+                  isSelected={selectedActivity === activity.id && !dragState}
+                  isDragTarget={dragState?.dropTargetId === activity.id}
+                  onSelect={handleSelect}
+                  onDragStart={startDrag}
+                  onResizeStart={startResize}
+                />
+              )
+            })}
+
+            {/* Drag ghost */}
+            {dragState && draggedActivity && (
+              <DragGhost
+                activity={draggedActivity}
+                topPx={dragState.ghostTop}
+                heightPx={dragState.ghostHeight}
               />
-            ))}
+            )}
           </div>
         </div>
       </main>
