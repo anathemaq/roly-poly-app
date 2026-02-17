@@ -67,7 +67,7 @@ export default function FocusScreen() {
               size={224}
               strokeWidth={6}
               colorClass={pomodoroPhase === "work" ? "text-primary" : "text-secondary"}
-              draggable={!pomodoroIsRunning}
+              draggable
               onDurationCommit={(newRemainingMs) => {
                 const newSeconds = Math.max(1, Math.round(newRemainingMs / 1000))
                 setPomodoroTime(newSeconds)

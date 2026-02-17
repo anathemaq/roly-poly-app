@@ -8,7 +8,7 @@ interface CircularTimerProps {
   totalDuration: number
   /** Remaining time in ms */
   remaining: number
-  /** Current progress 0-100 (elapsed fraction) */
+  /** Current progress 0-100 (elapsed %) */
   progress: number
   /** Formatted time string to display */
   formattedTime: string
@@ -16,20 +16,58 @@ interface CircularTimerProps {
   label?: string
   /** Size of the timer in px */
   size?: number
-  /** Stroke width in SVG units (viewBox is 100x100) */
+  /** Stroke width in SVG units (viewBox 100x100) */
   strokeWidth?: number
   /** Color class for the progress arc */
   colorClass?: string
-  /** Whether dragging the thumb is enabled */
+  /** Whether the draggable thumb is visible and interactive */
   draggable?: boolean
-  /** Called continuously while dragging with new remaining ms */
+  /** Called continuously while dragging */
   onDurationChange?: (newRemainingMs: number) => void
-  /** Called once when drag ends with final remaining ms */
+  /** Called once on drag end */
   onDurationCommit?: (newRemainingMs: number) => void
 }
 
+const CX = 50
+const CY = 50
 const RADIUS = 45
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS
+
+/**
+ * Compute the SVG arc path for a given progress (0–100).
+ * Arc starts at 12-o'clock and goes clockwise.
+ */
+function arcPath(progress: number): string {
+  if (progress <= 0) return ""
+  if (progress >= 100) {
+    // Full circle — two half-arcs
+    return [
+      `M ${CX} ${CY - RADIUS}`,
+      `A ${RADIUS} ${RADIUS} 0 1 1 ${CX} ${CY + RADIUS}`,
+      `A ${RADIUS} ${RADIUS} 0 1 1 ${CX} ${CY - RADIUS}`,
+    ].join(" ")
+  }
+  const angle = (progress / 100) * 2 * Math.PI
+  const endX = CX + RADIUS * Math.sin(angle)
+  const endY = CY - RADIUS * Math.cos(angle)
+  const largeArc = progress > 50 ? 1 : 0
+  return `M ${CX} ${CY - RADIUS} A ${RADIUS} ${RADIUS} 0 ${largeArc} 1 ${endX} ${endY}`
+}
+
+/** Point on the circle at a given progress (0-100). 0 = top, clockwise. */
+function pointOnCircle(progress: number) {
+  const angle = (progress / 100) * 2 * Math.PI
+  return {
+    x: CX + RADIUS * Math.sin(angle),
+    y: CY - RADIUS * Math.cos(angle),
+  }
+}
+
+function formatMs(ms: number) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000))
+  const m = Math.floor(totalSeconds / 60)
+  const s = totalSeconds % 60
+  return `${m}:${s.toString().padStart(2, "0")}`
+}
 
 export function CircularTimer({
   totalDuration,
@@ -47,10 +85,11 @@ export function CircularTimer({
   const containerRef = useRef<HTMLDivElement>(null)
   const isDraggingRef = useRef(false)
   const dragRemainingRef = useRef<number | null>(null)
+
   const [dragProgress, setDragProgress] = useState<number | null>(null)
   const [dragRemaining, setDragRemaining] = useState<number | null>(null)
 
-  // Keep refs in sync for closures
+  // Refs to avoid stale closures in document listeners
   const onDurationChangeRef = useRef(onDurationChange)
   onDurationChangeRef.current = onDurationChange
   const onDurationCommitRef = useRef(onDurationCommit)
@@ -61,17 +100,20 @@ export function CircularTimer({
   const activeProgress = dragProgress ?? progress
   const displayTime = dragRemaining !== null ? formatMs(dragRemaining) : formattedTime
 
-  // Convert client coordinates to angle (0 = 12 o'clock, clockwise, 0-360)
+  /**
+   * Convert screen (clientX, clientY) to an angle 0-360.
+   * 0 = 12-o'clock, clockwise.
+   */
   const getAngle = useCallback((clientX: number, clientY: number): number => {
     const el = containerRef.current
     if (!el) return 0
     const rect = el.getBoundingClientRect()
-    const cx = rect.left + rect.width / 2
-    const cy = rect.top + rect.height / 2
-    // atan2 with y inverted for screen coords, shifted so 0 = top
-    let angle = Math.atan2(clientX - cx, -(clientY - cy)) // 0 at top, CW positive
-    if (angle < 0) angle += 2 * Math.PI
-    return (angle / (2 * Math.PI)) * 360
+    const dx = clientX - (rect.left + rect.width / 2)
+    const dy = clientY - (rect.top + rect.height / 2)
+    // atan2(dx, -dy) gives 0 at top, positive clockwise
+    let a = Math.atan2(dx, -dy)
+    if (a < 0) a += 2 * Math.PI
+    return (a / (2 * Math.PI)) * 360
   }, [])
 
   const handlePointerDown = useCallback(
@@ -81,10 +123,10 @@ export function CircularTimer({
       const angleDeg = getAngle(e.clientX, e.clientY)
       const pointerProgress = (angleDeg / 360) * 100
 
-      // Only start if pointer is near the thumb (within ~18% arc distance)
+      // Only start if pointer is near the current thumb position
       let dist = Math.abs(pointerProgress - activeProgress)
-      if (dist > 50) dist = 100 - dist
-      if (dist > 18) return
+      if (dist > 50) dist = 100 - dist // wrap-around
+      if (dist > 15) return
 
       e.preventDefault()
       e.stopPropagation()
@@ -93,11 +135,11 @@ export function CircularTimer({
 
       const onMove = (ev: PointerEvent) => {
         if (!isDraggingRef.current) return
+        ev.preventDefault()
         const a = getAngle(ev.clientX, ev.clientY)
         const newProgress = Math.max(0.5, Math.min(99.5, (a / 360) * 100))
         const td = totalDurationRef.current
-        const newElapsed = (newProgress / 100) * td
-        const newRemaining = Math.max(0, td - newElapsed)
+        const newRemaining = Math.max(0, td - (newProgress / 100) * td)
 
         dragRemainingRef.current = newRemaining
         setDragProgress(newProgress)
@@ -110,11 +152,10 @@ export function CircularTimer({
         document.removeEventListener("pointermove", onMove)
         document.removeEventListener("pointerup", onUp)
 
-        const finalRemaining = dragRemainingRef.current
-        if (finalRemaining !== null) {
-          onDurationCommitRef.current?.(finalRemaining)
+        const final = dragRemainingRef.current
+        if (final !== null) {
+          onDurationCommitRef.current?.(final)
         }
-
         dragRemainingRef.current = null
         setDragProgress(null)
         setDragRemaining(null)
@@ -126,17 +167,9 @@ export function CircularTimer({
     [draggable, getAngle, activeProgress],
   )
 
-  // Thumb position on the circle.
-  // activeProgress is % elapsed. 0% = 12 o'clock, 100% = full circle.
-  // SVG viewBox: center (50,50), radius 45.
-  // The SVG is NOT rotated -- we draw the arc manually from the top.
-  const thumbAngleRad = (activeProgress / 100) * 2 * Math.PI - Math.PI / 2
-  const thumbX = 50 + RADIUS * Math.cos(thumbAngleRad)
-  const thumbY = 50 + RADIUS * Math.sin(thumbAngleRad)
-
-  // Arc: strokeDashoffset draws from 3 o'clock by default in SVG.
-  // With -rotate-90 on the SVG, it starts from 12 o'clock.
-  const dashOffset = CIRCUMFERENCE * (1 - activeProgress / 100)
+  // Thumb position
+  const thumb = pointOnCircle(activeProgress)
+  const thumbR = strokeWidth / 2 + 1.5
 
   return (
     <div
@@ -145,41 +178,44 @@ export function CircularTimer({
       style={{ width: size, height: size, touchAction: draggable ? "none" : "auto" }}
     >
       <svg
-        className="w-full h-full -rotate-90"
+        className="w-full h-full"
         viewBox="0 0 100 100"
         onPointerDown={handlePointerDown}
       >
         {/* Background track */}
         <circle
-          cx="50" cy="50" r={RADIUS}
+          cx={CX} cy={CY} r={RADIUS}
           fill="none" stroke="currentColor" strokeWidth={strokeWidth}
           className="text-border"
         />
-        {/* Progress arc */}
-        <circle
-          cx="50" cy="50" r={RADIUS}
-          fill="none" stroke="currentColor" strokeWidth={strokeWidth}
-          strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={dashOffset}
-          strokeLinecap="round"
-          className={cn(
-            colorClass,
-            !isDraggingRef.current && "transition-[stroke-dashoffset] duration-300",
-          )}
-        />
+        {/* Progress arc — drawn as a path so no rotate-90 hack needed */}
+        {activeProgress > 0 && (
+          <path
+            d={arcPath(activeProgress)}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            className={cn(colorClass)}
+          />
+        )}
         {/* Draggable thumb */}
         {draggable && (
           <circle
-            cx={thumbX} cy={thumbY}
-            r={strokeWidth / 2 + 2}
+            cx={thumb.x}
+            cy={thumb.y}
+            r={thumbR}
             fill="currentColor"
             className={colorClass}
-            style={{ cursor: "grab", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))" }}
+            style={{
+              cursor: isDraggingRef.current ? "grabbing" : "grab",
+              filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
+            }}
           />
         )}
       </svg>
 
-      {/* Center label */}
+      {/* Center text */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center">
           <div
@@ -195,11 +231,4 @@ export function CircularTimer({
       </div>
     </div>
   )
-}
-
-function formatMs(ms: number) {
-  const totalSeconds = Math.floor(ms / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`
 }

@@ -290,7 +290,7 @@ export default function TodayScreen() {
               formattedTime={formatTime(timeRemaining)}
               label="осталось"
               size={160}
-              draggable={!!currentActivity && !isPaused}
+              draggable={!!currentActivity}
               onDurationCommit={(newRemainingMs) => {
                 if (!currentActivity) return
                 // Adjust the activity's endTime based on drag
