@@ -29,8 +29,11 @@ export async function POST(request: Request) {
     const now = new Date()
     const pending = activities.filter((a) => new Date(a.endTime) > now)
 
+    console.log("[v0] Schedule request:", { deviceId, total: activities.length, pending: pending.length })
+
     if (pending.length === 0) {
       await redis.del(KEYS.schedule(deviceId))
+      console.log("[v0] No pending activities, clearing schedule")
       return NextResponse.json({ success: true, scheduled: 0 })
     }
 
@@ -39,21 +42,32 @@ export async function POST(request: Request) {
       ex: TTL.schedule,
     })
 
-    // Get the app's base URL for QStash callbacks
-    const url = new URL(request.url)
-    const baseUrl = `${url.protocol}//${url.host}`
+    // Use the public Vercel URL (request.url may be internal on Vercel)
+    const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : new URL(request.url).origin
+
+    console.log("[v0] Using baseUrl for QStash:", baseUrl)
 
     // Schedule a QStash message for each pending activity
     let scheduled = 0
     for (const activity of pending) {
       const notifiedKey = KEYS.notified(deviceId, activity.id)
       const alreadyNotified = await redis.exists(notifiedKey)
-      if (alreadyNotified) continue
+      if (alreadyNotified) {
+        console.log("[v0] Already notified, skipping:", activity.id)
+        continue
+      }
 
       // Check if already scheduled (avoid duplicates)
       const scheduledKey = `push:queued:${deviceId}:${activity.id}`
       const alreadyScheduled = await redis.exists(scheduledKey)
-      if (alreadyScheduled) continue
+      if (alreadyScheduled) {
+        console.log("[v0] Already scheduled, skipping:", activity.id)
+        continue
+      }
 
       const endTime = new Date(activity.endTime)
       const delaySeconds = Math.max(
@@ -63,8 +77,11 @@ export async function POST(request: Request) {
 
       try {
         const qstash = getQStashClient()
+        const callbackUrl = `${baseUrl}/api/push/send`
+        console.log("[v0] Publishing to QStash:", { callbackUrl, delaySeconds, activityId: activity.id })
+
         await qstash.publishJSON({
-          url: `${baseUrl}/api/push/send`,
+          url: callbackUrl,
           body: {
             deviceId,
             activityId: activity.id,
@@ -73,11 +90,12 @@ export async function POST(request: Request) {
           delay: delaySeconds,
         })
 
-        // Mark as queued (TTL = schedule TTL)
-        await redis.set(scheduledKey, "1", { ex: TTL.schedule })
+        // Mark as queued with TTL matching the delay + buffer
+        await redis.set(scheduledKey, "1", { ex: Math.max(delaySeconds + 300, TTL.schedule) })
         scheduled++
+        console.log("[v0] QStash scheduled OK:", { activityId: activity.id, name: activity.name, delaySeconds })
       } catch (err) {
-        console.error(`Failed to schedule QStash for ${activity.id}:`, err)
+        console.error(`[v0] Failed to schedule QStash for ${activity.id}:`, err)
       }
     }
 
