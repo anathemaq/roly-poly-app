@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react"
 import { type Activity, type DayTemplate, DEFAULT_TEMPLATES } from "./types"
+import { getDeviceId } from "./device-id"
 
 type TimerPreset = {
   work: number
@@ -192,13 +193,44 @@ export function DayProvider({ children }: { children: ReactNode }) {
     saveToStorage(STORAGE_KEYS.pomodoroSessionsDate, new Date().toDateString())
   }, [pomodoroCompletedSessions, isHydrated])
 
-  // --- Activity completion notification ---
+  // --- Sync activities to server for push notifications ---
+  useEffect(() => {
+    if (!isHydrated) return
+
+    const pendingActivities = currentActivities.filter(
+      (a) => !a.completed && a.endTime && new Date(a.endTime) > new Date()
+    )
+
+    const deviceId = getDeviceId()
+    if (!deviceId) return
+
+    const payload = {
+      deviceId,
+      activities: pendingActivities.map((a) => ({
+        id: a.id,
+        name: a.name,
+        endTime: a.endTime!.toISOString(),
+      })),
+    }
+
+    fetch("/api/push/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).catch(() => {
+      // Silently fail — client-side notifications still work as fallback
+    })
+  }, [currentActivities, isHydrated])
+
+  // --- Activity completion notification + auto-complete ---
   const notifiedActivitiesRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (currentActivities.length === 0) return
 
     const check = () => {
       const now = new Date()
+      const expiredIds: string[] = []
+
       currentActivities.forEach((activity) => {
         if (
           !activity.completed &&
@@ -207,12 +239,46 @@ export function DayProvider({ children }: { children: ReactNode }) {
           !notifiedActivitiesRef.current.has(activity.id)
         ) {
           notifiedActivitiesRef.current.add(activity.id)
+          expiredIds.push(activity.id)
           sendNotification(
-            "Время вышло!",
+            "Время ��ышло!",
             `Активность "${activity.name}" завершена`
           )
         }
       })
+
+      // Auto-mark expired activities as completed
+      if (expiredIds.length > 0) {
+        setCurrentActivities((prev) => {
+          const updated = [...prev]
+          let changed = false
+
+          for (const id of expiredIds) {
+            const idx = updated.findIndex((a) => a.id === id)
+            if (idx !== -1 && !updated[idx].completed) {
+              updated[idx] = { ...updated[idx], completed: true }
+              changed = true
+            }
+          }
+
+          if (!changed) return prev
+
+          // Recalculate start/end times for remaining incomplete activities
+          const now = new Date()
+          let nextStart = now
+          for (let i = 0; i < updated.length; i++) {
+            if (updated[i].completed) continue
+            updated[i] = {
+              ...updated[i],
+              startTime: new Date(nextStart),
+              endTime: new Date(nextStart.getTime() + updated[i].duration * 60000),
+            }
+            nextStart = updated[i].endTime!
+          }
+
+          return updated
+        })
+      }
     }
 
     check()

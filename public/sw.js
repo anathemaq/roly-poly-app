@@ -46,3 +46,42 @@ self.addEventListener("message", (event) => {
     });
   }
 });
+
+// Handle server-sent push notifications (works when app is closed)
+self.addEventListener("push", (event) => {
+  let data = { title: "Roly-Poly", body: "Время вышло!" };
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    // fallback to defaults
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icons/icon-144x144.png",
+      badge: "/icons/icon-96x96.png",
+      vibrate: [200, 100, 200],
+      tag: "roly-poly-push-" + Date.now(),
+    })
+  );
+});
+
+// Open app when user taps a notification
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window" }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes("/today") && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow("/today");
+      }
+    })
+  );
+});
