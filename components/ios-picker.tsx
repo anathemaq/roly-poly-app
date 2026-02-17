@@ -1,7 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useState, useCallback } from "react"
-import { motion, useMotionValue, useTransform, useSpring } from "framer-motion"
+import React, { useEffect, useRef, useCallback } from "react"
 
 interface PickerOption {
   id: string
@@ -15,446 +14,264 @@ interface IOSPickerProps {
   onChangeCommitted?: (value: string) => void
 }
 
+const ITEM_HEIGHT = 44
+const VISIBLE_COUNT = 5
+const CENTER = Math.floor(VISIBLE_COUNT / 2)
+
+// iOS-style deceleration physics
+const DECELERATION = 0.997 // per-ms multiplier (iOS uses ~0.998)
+const MIN_VELOCITY = 0.03 // px/ms threshold to stop
+const RUBBER_BAND = 0.4 // overscroll resistance
+const SNAP_TENSION = 0.12 // spring snap strength
+const SNAP_DAMPING = 0.72 // spring snap damping
+
+/**
+ * Zero-rerender iOS-style wheel picker.
+ * All animation runs via refs + rAF + direct DOM writes.
+ */
 export function IOSPicker({ options, value, onChange, onChangeCommitted }: IOSPickerProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [currentIndex, setCurrentIndex] = useState(() => {
-    const initialIndex = options.findIndex((opt) => opt.id === value)
-    return initialIndex !== -1 ? initialIndex + options.length : options.length
-  })
-  const [isDragging, setIsDragging] = useState(false)
-  const [startY, setStartY] = useState(0)
-  const [lastY, setLastY] = useState(0)
-  const [velocity, setVelocity] = useState(0)
-  const [lastTime, setLastTime] = useState(0)
-  const animationRef = useRef<number | null>(null)
-  const isAnimatingRef = useRef(false)
-  // Рефы для корректной инерции без устаревших значений из замыканий
-  const velocityRef = useRef(0)
-  const indexRef = useRef<number>(0)
-  const lastReportedIndexRef = useRef<number>(0)
-  const lastLiveEmitTsRef = useRef<number>(0)
-  const liveEmitIntervalMs = 5
-  const expandedHitPadding = 24 // px — расширенная зона взаимодействия вокруг визуального блока
-  const pointerStartRef = useRef<((y: number) => void) | null>(null)
-  const pointerMoveRef = useRef<((y: number) => void) | null>(null)
-  const pointerEndRef = useRef<(() => void) | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const itemsRef = useRef<(HTMLDivElement | null)[]>([])
 
-  const itemHeight = 50
-  const visibleItems = 5
-  const centerIndex = Math.floor(visibleItems / 2)
-  const friction = 0.9985 // корректный коэффициент трения (<1), гораздо инертнее
-  const attractStrength = 0.12 // мягче притяжение
-  const minStartVelocity = 0.03 // старт инерции при малом флике
-  
-  const snapThreshold = 0.05 // порог остановки
-  const captureThreshold = 0.18 // уже окно захвата, опираемся на притяжение
+  // --- Animation state (never triggers React render) ---
+  const offsetRef = useRef(0) // current scroll offset in px (positive = scrolled down)
+  const velocityRef = useRef(0) // px per ms
+  const rafRef = useRef<number>(0)
+  const isDraggingRef = useRef(false)
+  const lastYRef = useRef(0)
+  const lastTimeRef = useRef(0)
+  const lastReportedRef = useRef(-1)
+  const totalHeight = options.length * ITEM_HEIGHT
 
-  // Синхронизация рефов со стейтом
-  useEffect(() => {
-    indexRef.current = currentIndex
-    lastReportedIndexRef.current = Math.round(currentIndex)
-  }, [currentIndex])
-  useEffect(() => {
-    velocityRef.current = velocity
-  }, [velocity])
+  // Sync initial value
+  const initialIdx = options.findIndex((o) => o.id === value)
+  if (offsetRef.current === 0 && initialIdx > 0) {
+    offsetRef.current = initialIdx * ITEM_HEIGHT
+  }
 
-  // Создаем бесконечный массив для плавной прокрутки
-  const infiniteOptions = [...options, ...options, ...options]
+  // --- Wrap offset into [0, totalHeight) for infinite scroll ---
+  const wrapOffset = useCallback(
+    (off: number) => ((off % totalHeight) + totalHeight) % totalHeight,
+    [totalHeight],
+  )
 
-  // Когда тянем — слушаем события на всём окне (чтобы не терять жест при выходе курсора/пальца за пределы блока)
-  // NOTE: завязан на handlePointerMove/End — объявим обработчики в ref ниже и используем их здесь
-  useEffect(() => {
-    if (!isDragging) return
-    const onPointerMove = (e: PointerEvent) => {
-      pointerMoveRef.current?.(e.clientY)
-    }
-    const onPointerUp = () => {
-      pointerEndRef.current?.()
-    }
-    window.addEventListener('pointermove', onPointerMove, { passive: false })
-    window.addEventListener('pointerup', onPointerUp, { passive: false })
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove as any)
-      window.removeEventListener('pointerup', onPointerUp as any)
-    }
-  }, [isDragging])
+  // --- Render a single frame (direct DOM writes, no setState) ---
+  const paint = useCallback(() => {
+    const wrapped = wrapOffset(offsetRef.current)
+    const centerIdx = wrapped / ITEM_HEIGHT
+    const baseIdx = Math.floor(centerIdx)
+    const frac = centerIdx - baseIdx
 
-  // Находим начальный индекс
-  useEffect(() => {
-    const initialIndex = options.findIndex((opt) => opt.id === value)
-    if (initialIndex !== -1) {
-      const newIndex = initialIndex + options.length
-      setCurrentIndex(newIndex)
-    }
-  }, [value, options])
+    for (let slot = 0; slot < VISIBLE_COUNT; slot++) {
+      const el = itemsRef.current[slot]
+      if (!el) continue
 
-  // Убираем onChange при каждом изменении индекса: триггер только при снапе/клике
+      const relSlot = slot - CENTER // -2, -1, 0, 1, 2
+      const itemOffset = relSlot + frac // fractional distance from center
+      const rawIdx = baseIdx - relSlot
+      const idx = ((rawIdx % options.length) + options.length) % options.length
 
-  // Физика движения с трением
-  useEffect(() => {
-    if (!isDragging && Math.abs(velocityRef.current) > snapThreshold && !isAnimatingRef.current) {
-      isAnimatingRef.current = true
-      
-      // Добавляем таймаут для принудительного завершения анимации
-      const timeoutId = setTimeout(() => {
-        if (isAnimatingRef.current) {
-          const currentIdx = indexRef.current
-          const snapped = Math.round(currentIdx)
-          setCurrentIndex(snapped)
-          console.log('Timeout forced completion - animation stopped')
-          setVelocity(0)
-          isAnimatingRef.current = false
-          
-          // Вызываем onChange при принудительном завершении по таймауту
-          const actualIndex = ((snapped % options.length) + options.length) % options.length
-          const selectedOption = options[actualIndex]
-          console.log('Timeout forced completion - calling onChange:', selectedOption?.label)
-          if (selectedOption) {
-            onChange(selectedOption.id)
-          }
-        }
-      }, 1000) // Максимум 1 секунда анимации
-      
-      const animate = () => {
-        const prev = indexRef.current
-        const newIndex = prev + velocityRef.current
-        const nextVelocity = velocityRef.current * friction
-        velocityRef.current = nextVelocity
-        setVelocity(nextVelocity)
+      // iOS-style 3D cylinder effect
+      const absOff = Math.abs(itemOffset)
+      const scale = Math.max(0.6, 1 - absOff * 0.18)
+      const opacity = Math.max(0.25, 1 - absOff * 0.35)
+      const translateY = -itemOffset * ITEM_HEIGHT
+      const rotateX = itemOffset * 18 // degrees
 
-        // Throttle onChange во время прокрутки
-        const now = performance.now()
-        if (now - lastLiveEmitTsRef.current >= liveEmitIntervalMs) {
-          lastLiveEmitTsRef.current = now
-          const nearest = Math.round(newIndex)
-          if (nearest !== lastReportedIndexRef.current) {
-            lastReportedIndexRef.current = nearest
-            const idx = ((nearest % options.length) + options.length) % options.length
-            const opt = options[idx]
-            if (opt) onChange(opt.id)
-          }
-        }
+      el.style.transform = `translateY(${translateY}px) perspective(400px) rotateX(${rotateX}deg) scale(${scale})`
+      el.style.opacity = String(opacity)
 
-        // Мгновенный захват, если близко к центру
-        const distanceToNearest = Math.abs(newIndex - Math.round(newIndex))
-        if (distanceToNearest <= captureThreshold) {
-          const snapped = Math.round(newIndex)
-          indexRef.current = snapped
-          setCurrentIndex(snapped)
-          setVelocity(0)
-          isAnimatingRef.current = false
-          clearTimeout(timeoutId)
-          const actualIndex = ((snapped % options.length) + options.length) % options.length
-          const selectedOption = options[actualIndex]
-          if (selectedOption) {
-            onChange(selectedOption.id)
-            if (onChangeCommitted) onChangeCommitted(selectedOption.id)
-          }
-        } else if (Math.abs(velocityRef.current) <= snapThreshold) {
-          // Снап к ближайшему элементу
-          const snapped = Math.round(newIndex)
-          indexRef.current = snapped
-          setCurrentIndex(snapped)
-          setVelocity(0)
-          isAnimatingRef.current = false
-          clearTimeout(timeoutId)
-          const actualIndex = ((snapped % options.length) + options.length) % options.length
-          const selectedOption = options[actualIndex]
-          if (selectedOption) onChange(selectedOption.id)
-        } else {
-          indexRef.current = newIndex
-          setCurrentIndex(newIndex)
-          animationRef.current = requestAnimationFrame(animate)
-        }
-      }
-      
-      animationRef.current = requestAnimationFrame(animate)
-      
-      return () => {
-        clearTimeout(timeoutId)
+      // Update text
+      const span = el.firstElementChild as HTMLElement | null
+      if (span) {
+        span.textContent = options[idx]?.label ?? ""
+        const isCenter = absOff < 0.5
+        span.style.fontWeight = isCenter ? "700" : "500"
+        span.style.fontSize = isCenter ? "20px" : "16px"
+        span.className = isCenter ? "text-foreground" : "text-muted-foreground"
       }
     }
-    
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-      }
+
+    // Report selection change (throttled)
+    const nearestIdx = Math.round(wrapped / ITEM_HEIGHT) % options.length
+    if (nearestIdx !== lastReportedRef.current) {
+      lastReportedRef.current = nearestIdx
+      const opt = options[nearestIdx]
+      if (opt) onChange(opt.id)
     }
-  }, [isDragging, options, onChange, friction, snapThreshold])
+  }, [options, wrapOffset, onChange])
 
-  // Бесконечная прокрутка
-  useEffect(() => {
-    if (currentIndex < options.length * 0.5) {
-      setCurrentIndex((prev: number) => prev + options.length)
-    } else if (currentIndex > options.length * 2.5) {
-      setCurrentIndex((prev: number) => prev - options.length)
-    }
-  }, [currentIndex, options.length])
+  // --- Momentum + snap animation loop ---
+  const animate = useCallback(() => {
+    if (isDraggingRef.current) return
 
-  const handlePointerStart = useCallback((clientY: number) => {
-    setIsDragging(true)
-    setStartY(clientY)
-    setLastY(clientY)
-    setVelocity(0)
-    setLastTime(Date.now())
-    isAnimatingRef.current = false
-    
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current)
-    }
-  }, [])
-
-  // Пробрасываем актуальные обработчики в ref, чтобы можно было вызывать до их объявления в эффектах
-  pointerStartRef.current = handlePointerStart
-
-  const handlePointerMove = useCallback((clientY: number) => {
-    if (!isDragging) return
-
-    const deltaY = clientY - lastY
-    const deltaTime = Date.now() - lastTime
-
-    if (deltaTime > 0) {
-      const newVelocity = (-deltaY / itemHeight / (deltaTime / 16)) * 1.2 // velocityGain (balanced)
-      velocityRef.current = newVelocity
-      setVelocity(newVelocity)
-    }
-
-    // Вычисляем следующий индекс без функции-обновителя, чтобы избежать сайд-эффектов в рендере
-    const next = indexRef.current - deltaY / itemHeight
-    indexRef.current = next
-    setCurrentIndex(next)
-
-    // Throttle onChange во время перетаскивания (вне функции-обновителя)
     const now = performance.now()
-    if (now - lastLiveEmitTsRef.current >= liveEmitIntervalMs) {
-      lastLiveEmitTsRef.current = now
-      const nearest = Math.round(next)
-      if (nearest !== lastReportedIndexRef.current) {
-        lastReportedIndexRef.current = nearest
-        const idx = ((nearest % options.length) + options.length) % options.length
-        const opt = options[idx]
-        if (opt) onChange(opt.id)
+    const dt = Math.min(now - lastTimeRef.current, 32) // cap at ~30fps min
+    lastTimeRef.current = now
+
+    let v = velocityRef.current
+    const wrapped = wrapOffset(offsetRef.current)
+    const nearestSnap = Math.round(wrapped / ITEM_HEIGHT) * ITEM_HEIGHT
+    const distToSnap = nearestSnap - wrapped
+    const normalizedDist = ((distToSnap + totalHeight / 2) % totalHeight) - totalHeight / 2
+
+    if (Math.abs(v) > MIN_VELOCITY) {
+      // Momentum phase: decelerate
+      v *= Math.pow(DECELERATION, dt)
+      offsetRef.current += v * dt
+      velocityRef.current = v
+
+      paint()
+      rafRef.current = requestAnimationFrame(animate)
+    } else if (Math.abs(normalizedDist) > 0.5) {
+      // Snap phase: spring towards nearest item
+      v = v * SNAP_DAMPING + normalizedDist * SNAP_TENSION
+      offsetRef.current += v * Math.min(dt, 16)
+      velocityRef.current = v
+
+      paint()
+      rafRef.current = requestAnimationFrame(animate)
+    } else {
+      // Settled
+      offsetRef.current = wrapOffset(nearestSnap)
+      velocityRef.current = 0
+      paint()
+
+      const idx = Math.round(offsetRef.current / ITEM_HEIGHT) % options.length
+      const opt = options[idx]
+      if (opt) {
+        onChange(opt.id)
+        onChangeCommitted?.(opt.id)
       }
     }
+  }, [options, totalHeight, wrapOffset, paint, onChange, onChangeCommitted])
 
-    setLastY(clientY)
-    setLastTime(Date.now())
-  }, [isDragging, lastY, lastTime, itemHeight, onChange])
-  pointerMoveRef.current = handlePointerMove
+  // --- Pointer handlers ---
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      // Stop any running animation
+      cancelAnimationFrame(rafRef.current)
 
-  const handlePointerEnd = useCallback(() => {
-    console.log('handlePointerEnd - isDragging:', isDragging, 'isAnimating:', isAnimatingRef.current, 'velocity:', velocity)
-    setIsDragging(false)
+      isDraggingRef.current = true
+      lastYRef.current = e.clientY
+      lastTimeRef.current = performance.now()
+      velocityRef.current = 0
+      ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    },
+    [],
+  )
 
-    // Высокая скорость — запускаем инерцию и снап по окончании
-    if (Math.abs(velocityRef.current) > snapThreshold && !isAnimatingRef.current) {
-      isAnimatingRef.current = true
-      const animate = () => {
-        const prev = indexRef.current
-        const newIndex = prev + velocityRef.current
-        const nextVelocity = velocityRef.current * friction
-        velocityRef.current = nextVelocity
-        setVelocity(nextVelocity)
-        // Throttle onChange во время прокрутки
-        const now = performance.now()
-        if (now - lastLiveEmitTsRef.current >= liveEmitIntervalMs) {
-          lastLiveEmitTsRef.current = now
-          const nearest = Math.round(newIndex)
-          if (nearest !== lastReportedIndexRef.current) {
-            lastReportedIndexRef.current = nearest
-            const idx = ((nearest % options.length) + options.length) % options.length
-            const opt = options[idx]
-            if (opt) onChange(opt.id)
-          }
-        }
-        // Мгновенный захват, если близко к центру
-        const distanceToNearest = Math.abs(newIndex - Math.round(newIndex))
-        if (distanceToNearest <= captureThreshold) {
-          const snapped = Math.round(newIndex)
-          indexRef.current = snapped
-          setCurrentIndex(snapped)
-          setVelocity(0)
-          isAnimatingRef.current = false
-          const actualIndex = ((snapped % options.length) + options.length) % options.length
-          const selectedOption = options[actualIndex]
-          if (selectedOption) {
-            onChange(selectedOption.id)
-            if (onChangeCommitted) onChangeCommitted(selectedOption.id)
-          }
-        } else if (Math.abs(velocityRef.current) <= snapThreshold) {
-          const snapped = Math.round(newIndex)
-          indexRef.current = snapped
-          setCurrentIndex(snapped)
-          setVelocity(0)
-          isAnimatingRef.current = false
-          const actualIndex = ((snapped % options.length) + options.length) % options.length
-          const selectedOption = options[actualIndex]
-          if (selectedOption) onChange(selectedOption.id)
-        } else {
-          indexRef.current = newIndex
-          setCurrentIndex(newIndex)
-          animationRef.current = requestAnimationFrame(animate)
-        }
-      }
-      animationRef.current = requestAnimationFrame(animate)
-      return
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDraggingRef.current) return
+
+      const now = performance.now()
+      const dy = e.clientY - lastYRef.current
+      const dt = Math.max(now - lastTimeRef.current, 1)
+
+      offsetRef.current -= dy
+      velocityRef.current = -dy / dt // px per ms
+
+      lastYRef.current = e.clientY
+      lastTimeRef.current = now
+
+      paint()
+    },
+    [paint],
+  )
+
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDraggingRef.current) return
+      isDraggingRef.current = false
+      lastTimeRef.current = performance.now()
+      rafRef.current = requestAnimationFrame(animate)
+    },
+    [animate],
+  )
+
+  // Handle click on non-center items to scroll to them
+  const handleItemClick = useCallback(
+    (slot: number) => {
+      if (isDraggingRef.current) return
+      const relSlot = slot - CENTER
+      if (relSlot === 0) return // already center
+
+      cancelAnimationFrame(rafRef.current)
+      offsetRef.current -= relSlot * ITEM_HEIGHT
+      velocityRef.current = 0
+      lastTimeRef.current = performance.now()
+      rafRef.current = requestAnimationFrame(animate)
+    },
+    [animate],
+  )
+
+  // --- Sync from external value changes ---
+  useEffect(() => {
+    const idx = options.findIndex((o) => o.id === value)
+    if (idx === -1) return
+
+    const targetOffset = idx * ITEM_HEIGHT
+    const wrapped = wrapOffset(offsetRef.current)
+    const currentIdx = Math.round(wrapped / ITEM_HEIGHT) % options.length
+
+    if (currentIdx !== idx && !isDraggingRef.current) {
+      offsetRef.current = targetOffset
+      paint()
     }
+  }, [value, options, wrapOffset, paint])
 
-    // Низкая скорость или уже не анимируется — сразу снапим
-    const snapped = Math.round(currentIndex)
-    setCurrentIndex(snapped)
-    indexRef.current = snapped
-    setVelocity(0)
-    isAnimatingRef.current = false
-    const actualIndex = ((snapped % options.length) + options.length) % options.length
-    const selectedOption = options[actualIndex]
-    if (selectedOption) {
-      onChange(selectedOption.id)
-      if (onChangeCommitted) onChangeCommitted(selectedOption.id)
-    }
-  }, [currentIndex, isDragging, velocity, snapThreshold, friction, options, onChange])
-  pointerEndRef.current = handlePointerEnd
+  // Initial paint
+  useEffect(() => {
+    paint()
+  }, [paint])
 
-  const handleItemClick = useCallback((index: number) => {
-    const actualIndexClicked = ((index % options.length) + options.length) % options.length
-    console.log('Item clicked - index:', index, 'actualIndex:', actualIndexClicked, 'label:', options[actualIndexClicked].label)
-    setCurrentIndex(index)
-    setVelocity(0)
-    isAnimatingRef.current = false
-    const actualIndex = ((index % options.length) + options.length) % options.length
-    const selectedOption = options[actualIndex]
-    if (selectedOption) {
-      onChange(selectedOption.id)
-      if (onChangeCommitted) onChangeCommitted(selectedOption.id)
-    }
-  }, [options, onChange, onChangeCommitted])
-
-  // Обработчик для touch кликов
-  const handleItemTouch = useCallback((e: React.TouchEvent, index: number) => {
-    e.preventDefault()
-    e.stopPropagation()
-    console.log('Item touched - index:', index)
-    
-    // Тактильная обратная связь для мобильных устройств
-    if (navigator.vibrate) {
-      navigator.vibrate(50) // Короткая вибрация
-    }
-    
-    handleItemClick(index)
-  }, [handleItemClick])
-
-  // Обработчики событий
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
-    handlePointerStart(e.clientY)
-  }
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      e.preventDefault()
-      handlePointerMove(e.clientY)
-    }
-  }
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    e.preventDefault()
-    handlePointerEnd()
-  }
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0]
-    handlePointerStart(touch.clientY)
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (isDragging) {
-      e.preventDefault()
-      handlePointerMove(e.touches[0].clientY)
-    }
-  }
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    // Не блокируем preventDefault для прокрутки
-    handlePointerEnd()
-  }
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [])
 
   return (
     <div
-      className="relative w-full h-full overflow-hidden"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{ cursor: isDragging ? "grabbing" : "grab", touchAction: "none" }}
+      ref={rootRef}
+      className="relative w-full h-full overflow-hidden select-none"
+      style={{ touchAction: "none", cursor: "grab" }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
-      {/* Центральная область выбора - убрана для лучшей видимости */}
-
-      {/* Градиенты для краев */}
+      {/* Edge gradients */}
       <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none z-20" />
       <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none z-20" />
 
+      {/* Selection indicator */}
       <div
-        ref={containerRef}
-        className="h-full flex flex-col items-center justify-start pt-[200px] select-none relative z-10"
-      >
-        {infiniteOptions.map((option, index) => {
-          const offset = index - currentIndex
-          const absOffset = Math.abs(offset)
-          // Показываем все элементы в пределах разумного расстояния
-          const isVisible = absOffset <= centerIndex
+        className="absolute inset-x-4 z-10 pointer-events-none rounded-lg border border-primary/20"
+        style={{
+          top: `calc(50% - ${ITEM_HEIGHT / 2}px)`,
+          height: `${ITEM_HEIGHT}px`,
+        }}
+      />
 
-          if (!isVisible) return null
-
-
-          // Физика масштабирования и прозрачности
-          const translateY = offset * itemHeight
-          
-          // Простая логика определения центрального элемента
-          const isCenter = absOffset <= 0.5
-          const scale = isCenter ? 1.1 : Math.max(0.5, 1 - absOffset * 0.25)
-          const opacity = isCenter ? 1 : Math.max(0.2, 1 - absOffset * 0.4)
-          
-
-          return (
-            <motion.div
-              key={`${option.id}-${index}`}
-              onClick={() => handleItemClick(index)}
-              data-item={index}
-              className="absolute flex items-center justify-center"
-              style={{
-                height: `${itemHeight}px`,
-                top: `calc(50% + ${translateY}px)`,
-                transform: `translateY(-50%) scale(${scale})`,
-                opacity: opacity,
-                pointerEvents: "auto",
-                cursor: "pointer",
-              }}
-              animate={{
-                scale: scale,
-                opacity: opacity,
-              }}
-              transition={{
-                type: "spring",
-                stiffness: 300,
-                damping: 30,
-                mass: 0.8,
-              }}
-            >
-              <span
-                className={`font-medium transition-colors duration-200 ${
-                  isCenter 
-                    ? "text-foreground font-bold text-xl" 
-                    : "text-muted-foreground text-base"
-                }`}
-              >
-                {option.label}
-              </span>
-            </motion.div>
-          )
-        })}
+      {/* Picker items (fixed number of slots, reused) */}
+      <div className="relative h-full flex flex-col items-center justify-center">
+        {Array.from({ length: VISIBLE_COUNT }, (_, slot) => (
+          <div
+            key={slot}
+            ref={(el) => { itemsRef.current[slot] = el }}
+            className="absolute flex items-center justify-center w-full"
+            style={{
+              height: `${ITEM_HEIGHT}px`,
+              willChange: "transform, opacity",
+              pointerEvents: "auto",
+              cursor: "pointer",
+            }}
+            onClick={() => handleItemClick(slot)}
+          >
+            <span className="text-muted-foreground transition-colors duration-150" />
+          </div>
+        ))}
       </div>
     </div>
   )

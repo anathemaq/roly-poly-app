@@ -193,33 +193,48 @@ export function DayProvider({ children }: { children: ReactNode }) {
     saveToStorage(STORAGE_KEYS.pomodoroSessionsDate, new Date().toDateString())
   }, [pomodoroCompletedSessions, isHydrated])
 
-  // --- Sync activities to server for push notifications ---
+  // --- Sync activities to server for push notifications (debounced) ---
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
     if (!isHydrated) return
 
-    const pendingActivities = currentActivities.filter(
-      (a) => !a.completed && a.endTime && new Date(a.endTime) > new Date()
-    )
-
-    const deviceId = getDeviceId()
-    if (!deviceId) return
-
-    const payload = {
-      deviceId,
-      activities: pendingActivities.map((a) => ({
-        id: a.id,
-        name: a.name,
-        endTime: a.endTime!.toISOString(),
-      })),
+    // Clear previous pending sync
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current)
     }
 
-    fetch("/api/push/schedule", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).catch(() => {
-      // Silently fail — client-side notifications still work as fallback
-    })
+    // Debounce: wait 2s after last change before syncing
+    syncTimeoutRef.current = setTimeout(() => {
+      const pendingActivities = currentActivities.filter(
+        (a) => !a.completed && a.endTime && new Date(a.endTime) > new Date()
+      )
+
+      const deviceId = getDeviceId()
+      if (!deviceId) return
+
+      const payload = {
+        deviceId,
+        activities: pendingActivities.map((a) => ({
+          id: a.id,
+          name: a.name,
+          endTime: a.endTime!.toISOString(),
+        })),
+      }
+
+      fetch("/api/push/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch(() => {
+        // Silently fail — client-side notifications still work as fallback
+      })
+    }, 2000)
+
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current)
+      }
+    }
   }, [currentActivities, isHydrated])
 
   // --- Activity completion notification + auto-complete ---
