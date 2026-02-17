@@ -17,7 +17,6 @@ export async function POST(request: Request) {
       ex: TTL.subscription,
     })
 
-    console.log("[v0] Push subscribe OK:", { deviceId, endpoint: subscription?.endpoint?.slice(0, 60) })
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Push subscribe error:", error)

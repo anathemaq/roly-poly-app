@@ -9,8 +9,10 @@ export const redis = new Redis({
 export const KEYS = {
   subscription: (deviceId: string) => `push:sub:${deviceId}`,
   schedule: (deviceId: string) => `push:schedule:${deviceId}`,
-  notified: (deviceId: string, activityId: string) =>
-    `push:notified:${deviceId}:${activityId}`,
+  notified: (deviceId: string, activityId: string, endTime?: string) =>
+    `push:notified:${deviceId}:${activityId}:${endTime || ""}`,
+  queued: (deviceId: string, activityId: string, endTime?: string) =>
+    `push:queued:${deviceId}:${activityId}:${endTime || ""}`,
 } as const
 
 // TTLs in seconds
