@@ -1,14 +1,14 @@
 "use client"
 
-import { useRef, useCallback, useEffect, useState } from "react"
+import { useRef, useCallback, useState } from "react"
 import { cn } from "@/lib/utils"
 
 interface CircularTimerProps {
-  /** Total duration in ms (used for progress calculation) */
+  /** Total duration in ms */
   totalDuration: number
   /** Remaining time in ms */
   remaining: number
-  /** Current progress 0-100 */
+  /** Current progress 0-100 (elapsed fraction) */
   progress: number
   /** Formatted time string to display */
   formattedTime: string
@@ -16,17 +16,20 @@ interface CircularTimerProps {
   label?: string
   /** Size of the timer in px */
   size?: number
-  /** Stroke width */
+  /** Stroke width in SVG units (viewBox is 100x100) */
   strokeWidth?: number
   /** Color class for the progress arc */
   colorClass?: string
   /** Whether dragging the thumb is enabled */
   draggable?: boolean
-  /** Called with new remaining ms when user drags the thumb */
+  /** Called continuously while dragging with new remaining ms */
   onDurationChange?: (newRemainingMs: number) => void
-  /** Called when drag ends */
+  /** Called once when drag ends with final remaining ms */
   onDurationCommit?: (newRemainingMs: number) => void
 }
+
+const RADIUS = 45
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export function CircularTimer({
   totalDuration,
@@ -41,148 +44,150 @@ export function CircularTimer({
   onDurationChange,
   onDurationCommit,
 }: CircularTimerProps) {
-  const svgRef = useRef<SVGSVGElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const isDraggingRef = useRef(false)
-  const [localProgress, setLocalProgress] = useState<number | null>(null)
-  const [localRemaining, setLocalRemaining] = useState<number | null>(null)
+  const dragRemainingRef = useRef<number | null>(null)
+  const [dragProgress, setDragProgress] = useState<number | null>(null)
+  const [dragRemaining, setDragRemaining] = useState<number | null>(null)
 
-  const radius = 45
-  const circumference = 2 * Math.PI * radius
-  const activeProgress = localProgress !== null ? localProgress : progress
-  const displayTime = localRemaining !== null ? formatMs(localRemaining) : formattedTime
+  // Keep refs in sync for closures
+  const onDurationChangeRef = useRef(onDurationChange)
+  onDurationChangeRef.current = onDurationChange
+  const onDurationCommitRef = useRef(onDurationCommit)
+  onDurationCommitRef.current = onDurationCommit
+  const totalDurationRef = useRef(totalDuration)
+  totalDurationRef.current = totalDuration
 
-  // Compute angle from pointer position relative to SVG center
-  const getAngleFromPointer = useCallback(
-    (clientX: number, clientY: number) => {
-      const svg = svgRef.current
-      if (!svg) return 0
+  const activeProgress = dragProgress ?? progress
+  const displayTime = dragRemaining !== null ? formatMs(dragRemaining) : formattedTime
 
-      const rect = svg.getBoundingClientRect()
-      const cx = rect.left + rect.width / 2
-      const cy = rect.top + rect.height / 2
-      const dx = clientX - cx
-      const dy = clientY - cy
-
-      // atan2 gives angle from positive x-axis. We want angle from top (12 o'clock)
-      // Top = -PI/2 in standard math coords
-      let angle = Math.atan2(dy, dx) + Math.PI / 2
-      if (angle < 0) angle += 2 * Math.PI
-      return angle
-    },
-    [],
-  )
-
-  const angleToProgress = useCallback((angle: number) => {
-    return (angle / (2 * Math.PI)) * 100
+  // Convert client coordinates to angle (0 = 12 o'clock, clockwise, 0-360)
+  const getAngle = useCallback((clientX: number, clientY: number): number => {
+    const el = containerRef.current
+    if (!el) return 0
+    const rect = el.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    // atan2 with y inverted for screen coords, shifted so 0 = top
+    let angle = Math.atan2(clientX - cx, -(clientY - cy)) // 0 at top, CW positive
+    if (angle < 0) angle += 2 * Math.PI
+    return (angle / (2 * Math.PI)) * 360
   }, [])
 
-  const onPointerDown = useCallback(
+  const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!draggable) return
 
-      const angle = getAngleFromPointer(e.clientX, e.clientY)
-      const pointerProgress = angleToProgress(angle)
+      const angleDeg = getAngle(e.clientX, e.clientY)
+      const pointerProgress = (angleDeg / 360) * 100
 
-      // Only start drag if pointer is near the thumb (within 15% of arc)
-      if (Math.abs(pointerProgress - activeProgress) > 15 &&
-          Math.abs(pointerProgress - activeProgress) < 85) return
+      // Only start if pointer is near the thumb (within ~18% arc distance)
+      let dist = Math.abs(pointerProgress - activeProgress)
+      if (dist > 50) dist = 100 - dist
+      if (dist > 18) return
 
       e.preventDefault()
       e.stopPropagation()
       isDraggingRef.current = true
-      ;(e.target as SVGElement).setPointerCapture(e.pointerId)
-    },
-    [draggable, getAngleFromPointer, angleToProgress, activeProgress],
-  )
+      dragRemainingRef.current = null
 
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!isDraggingRef.current) return
+      const onMove = (ev: PointerEvent) => {
+        if (!isDraggingRef.current) return
+        const a = getAngle(ev.clientX, ev.clientY)
+        const newProgress = Math.max(0.5, Math.min(99.5, (a / 360) * 100))
+        const td = totalDurationRef.current
+        const newElapsed = (newProgress / 100) * td
+        const newRemaining = Math.max(0, td - newElapsed)
 
-      const angle = getAngleFromPointer(e.clientX, e.clientY)
-      const newProgress = Math.max(0.5, Math.min(99.5, angleToProgress(angle)))
-      const newElapsed = (newProgress / 100) * totalDuration
-      const newRemaining = Math.max(0, totalDuration - newElapsed)
-
-      setLocalProgress(newProgress)
-      setLocalRemaining(newRemaining)
-      onDurationChange?.(newRemaining)
-    },
-    [getAngleFromPointer, angleToProgress, totalDuration, onDurationChange],
-  )
-
-  const onPointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      if (!isDraggingRef.current) return
-      isDraggingRef.current = false
-
-      if (localRemaining !== null) {
-        onDurationCommit?.(localRemaining)
+        dragRemainingRef.current = newRemaining
+        setDragProgress(newProgress)
+        setDragRemaining(newRemaining)
+        onDurationChangeRef.current?.(newRemaining)
       }
 
-      setLocalProgress(null)
-      setLocalRemaining(null)
+      const onUp = () => {
+        isDraggingRef.current = false
+        document.removeEventListener("pointermove", onMove)
+        document.removeEventListener("pointerup", onUp)
+
+        const finalRemaining = dragRemainingRef.current
+        if (finalRemaining !== null) {
+          onDurationCommitRef.current?.(finalRemaining)
+        }
+
+        dragRemainingRef.current = null
+        setDragProgress(null)
+        setDragRemaining(null)
+      }
+
+      document.addEventListener("pointermove", onMove)
+      document.addEventListener("pointerup", onUp)
     },
-    [localRemaining, onDurationCommit],
+    [draggable, getAngle, activeProgress],
   )
 
-  // Thumb position: point on circle at the progress angle
-  const thumbAngle = ((activeProgress / 100) * 2 * Math.PI) - Math.PI / 2
-  const thumbX = 50 + radius * Math.cos(thumbAngle)
-  const thumbY = 50 + radius * Math.sin(thumbAngle)
+  // Thumb position on the circle.
+  // activeProgress is % elapsed. 0% = 12 o'clock, 100% = full circle.
+  // SVG viewBox: center (50,50), radius 45.
+  // The SVG is NOT rotated -- we draw the arc manually from the top.
+  const thumbAngleRad = (activeProgress / 100) * 2 * Math.PI - Math.PI / 2
+  const thumbX = 50 + RADIUS * Math.cos(thumbAngleRad)
+  const thumbY = 50 + RADIUS * Math.sin(thumbAngleRad)
+
+  // Arc: strokeDashoffset draws from 3 o'clock by default in SVG.
+  // With -rotate-90 on the SVG, it starts from 12 o'clock.
+  const dashOffset = CIRCUMFERENCE * (1 - activeProgress / 100)
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div
+      ref={containerRef}
+      className="relative"
+      style={{ width: size, height: size, touchAction: draggable ? "none" : "auto" }}
+    >
       <svg
-        ref={svgRef}
         className="w-full h-full -rotate-90"
         viewBox="0 0 100 100"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        style={{ touchAction: draggable ? "none" : "auto" }}
+        onPointerDown={handlePointerDown}
       >
-        {/* Background circle */}
+        {/* Background track */}
         <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
+          cx="50" cy="50" r={RADIUS}
+          fill="none" stroke="currentColor" strokeWidth={strokeWidth}
           className="text-border"
         />
         {/* Progress arc */}
         <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - activeProgress / 100)}
+          cx="50" cy="50" r={RADIUS}
+          fill="none" stroke="currentColor" strokeWidth={strokeWidth}
+          strokeDasharray={CIRCUMFERENCE}
+          strokeDashoffset={dashOffset}
           strokeLinecap="round"
-          className={cn("transition-[stroke-dashoffset] duration-300", colorClass)}
-          style={isDraggingRef.current ? { transition: "none" } : undefined}
+          className={cn(
+            colorClass,
+            !isDraggingRef.current && "transition-[stroke-dashoffset] duration-300",
+          )}
         />
         {/* Draggable thumb */}
         {draggable && (
           <circle
-            cx={thumbX}
-            cy={thumbY}
-            r={strokeWidth / 2 + 1.5}
+            cx={thumbX} cy={thumbY}
+            r={strokeWidth / 2 + 2}
             fill="currentColor"
             className={colorClass}
-            style={{ cursor: "grab", filter: "drop-shadow(0 0 2px rgba(0,0,0,0.3))" }}
+            style={{ cursor: "grab", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))" }}
           />
         )}
       </svg>
 
-      {/* Center text */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      {/* Center label */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center">
-          <div className="text-3xl font-bold text-foreground">{displayTime}</div>
+          <div
+            className="font-bold text-foreground"
+            style={{ fontSize: size * 0.19 }}
+          >
+            {displayTime}
+          </div>
           {label && (
             <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
           )}
