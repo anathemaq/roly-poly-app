@@ -36,7 +36,10 @@ export default function FocusScreen() {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col overflow-hidden" style={{ overscrollBehavior: 'none', touchAction: 'none' }}>
-      <header className="p-3 flex justify-end items-center">
+      <header
+        className="px-3 pb-3 flex justify-end items-center"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+      >
         <ThemeToggle />
       </header>
 

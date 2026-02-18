@@ -26,7 +26,10 @@ export default function TemplatesScreen() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20">
-      <header className="p-3 flex justify-between items-center border-b border-border">
+      <header
+        className="px-3 pb-3 flex justify-between items-center border-b border-border"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+      >
         <h1 className="text-base font-semibold text-foreground">Шаблоны</h1>
         <ThemeToggle />
       </header>
