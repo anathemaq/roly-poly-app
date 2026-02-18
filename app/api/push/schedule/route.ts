@@ -14,17 +14,23 @@ interface ScheduledActivity {
 
 export async function POST(request: Request) {
   try {
-    const { deviceId, activities } = (await request.json()) as {
+    const { deviceId, activities, sessionId } = (await request.json()) as {
       deviceId: string
       activities: ScheduledActivity[]
+      sessionId: string
     }
 
-    if (!deviceId || !activities) {
+    if (!deviceId || !activities || !sessionId) {
       return NextResponse.json(
-        { error: "deviceId and activities are required" },
+        { error: "deviceId, activities, and sessionId are required" },
         { status: 400 }
       )
     }
+
+    // Store the active session — only this session's notifications will fire
+    await redis.set(KEYS.activeSession(deviceId), sessionId, {
+      ex: TTL.schedule,
+    })
 
     const now = new Date()
     const pending = activities.filter((a) => new Date(a.endTime) > now)
@@ -72,6 +78,7 @@ export async function POST(request: Request) {
           url: `${baseUrl}/api/push/send`,
           body: {
             deviceId,
+            sessionId,
             activityId: activity.id,
             activityName: activity.name,
             endTime: activity.endTime,
