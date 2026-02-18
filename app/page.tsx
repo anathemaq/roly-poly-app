@@ -63,51 +63,56 @@ export default function StartScreen() {
       className="fixed inset-0 bg-background flex flex-col overflow-hidden"
       style={{ overscrollBehavior: 'none', touchAction: 'none' }}
     >
-      <header className="px-3 py-2 flex justify-end items-center flex-shrink-0">
+      <header
+        className="px-4 pb-2 flex justify-end items-center flex-shrink-0"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
+      >
         <ThemeToggle />
       </header>
 
       <main className="flex-1 flex flex-col px-4 pb-[calc(56px+env(safe-area-inset-bottom)+8px)] overflow-hidden">
-        <div className="flex-1 flex flex-col items-center justify-start pt-0 space-y-1">
-          <div className="text-center space-y-1 mt-3">
+        <div className="flex-1 flex flex-col items-center justify-start space-y-3">
+          {/* Time and date */}
+          <div className="text-center space-y-0.5">
             <div className="text-5xl font-bold text-foreground tracking-tight">{timeString}</div>
-            <div className="text-base text-muted-foreground capitalize">{dateString}</div>
+            <div className="text-sm text-muted-foreground capitalize">{dateString}</div>
           </div>
 
-          <div className="space-y-1.5 w-full max-w-sm">
-
-            <div className="h-[260px] mt-2">
+          {/* Template picker */}
+          <div className="w-full max-w-sm space-y-2">
+            <div className="h-[250px]">
               <IOSPicker options={pickerOptions} value={selectedTemplateId} onChange={setSelectedTemplateId} />
             </div>
 
-            <div className="text-center mt-[50px]">
-              <div className="text-xs text-muted-foreground">
+            {/* Template summary */}
+            <div className="text-center">
+              <span className="text-xs text-muted-foreground">
                 {selectedTemplate.activities.length} активностей · {hours}ч {minutes}м
-              </div>
+              </span>
             </div>
 
-            {/* Превью активностей - еще компактнее */}
-            <div className="space-y-1 mt-2 mb-[30px]">
-              <h3 className="text-[10px] font-medium text-muted-foreground text-center">
+            {/* Activity preview */}
+            <div className="space-y-1 px-2">
+              <h3 className="text-[10px] font-medium text-muted-foreground text-center uppercase tracking-wider">
                 Активности дня
               </h3>
               <div className="space-y-0.5">
-                {selectedTemplate.activities.slice(0, 2).map((activity, index) => {
+                {selectedTemplate.activities.slice(0, 3).map((activity) => {
                   const activityHours = Math.floor(activity.duration / 60)
                   const activityMinutes = activity.duration % 60
                   const durationText = activityHours > 0 ? `${activityHours}ч ${activityMinutes}м` : `${activityMinutes}м`
-                  
+
                   return (
-                    <div key={activity.id} className="flex items-center gap-1.5 text-[10px]">
-                      <div className="w-0.5 h-0.5 rounded-full bg-primary flex-shrink-0" />
+                    <div key={activity.id} className="flex items-center gap-2 text-[11px]">
+                      <div className="w-1 h-1 rounded-full bg-primary flex-shrink-0" />
                       <span className="text-foreground flex-1 truncate">{activity.name}</span>
-                      <span className="text-muted-foreground text-[9px]">{durationText}</span>
+                      <span className="text-muted-foreground">{durationText}</span>
                     </div>
                   )
                 })}
-                {selectedTemplate.activities.length > 2 && (
-                  <div className="text-[9px] text-muted-foreground text-center">
-                    +{selectedTemplate.activities.length - 2} еще
+                {selectedTemplate.activities.length > 3 && (
+                  <div className="text-[10px] text-muted-foreground text-center pt-0.5">
+                    +{selectedTemplate.activities.length - 3} еще
                   </div>
                 )}
               </div>
@@ -115,15 +120,14 @@ export default function StartScreen() {
           </div>
         </div>
 
-        {/* Фиксированная кнопка без влияния на прокрутку */}
+        {/* Start button */}
         <div
-          className="fixed left-0 right-0 px-4 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2 bg-gradient-to-t from-background/80 to-transparent"
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 54px)' }}
+          className="fixed left-0 right-0 px-4 max-w-md mx-auto"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)', zIndex: 50 }}
         >
           <button
             onClick={handleStartDay}
-            className="w-full flex items-center justify-center gap-2 h-14 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-2xl clickable"
-            style={{ pointerEvents: 'auto', zIndex: 50 }}
+            className="w-full flex items-center justify-center gap-2 h-13 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-2xl active:scale-[0.98] transition-transform"
           >
             <Play className="h-4 w-4" />
             Начать день
