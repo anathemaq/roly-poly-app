@@ -57,7 +57,11 @@ export async function POST(request: Request) {
         ? `https://${process.env.VERCEL_URL}`
         : new URL(request.url).origin
 
-
+    // QStash cannot call loopback/localhost — skip in preview environments
+    const isLoopback = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")
+    if (isLoopback) {
+      return NextResponse.json({ success: true, scheduled: 0, reason: "loopback_skipped" })
+    }
 
     // Schedule a QStash message for each pending activity
     let scheduled = 0
