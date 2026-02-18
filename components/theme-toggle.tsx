@@ -15,7 +15,7 @@ export function ThemeToggle() {
     setTheme(initialTheme)
     document.documentElement.classList.toggle("dark", initialTheme === "dark")
     const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#ffffff")
+    if (meta) meta.setAttribute("content", initialTheme === "dark" ? "#090218" : "#c7cbcb")
   }, [])
 
   const toggleTheme = () => {
@@ -24,7 +24,7 @@ export function ThemeToggle() {
     localStorage.setItem("theme", newTheme)
     document.documentElement.classList.toggle("dark", newTheme === "dark")
     const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute("content", newTheme === "dark" ? "#09090b" : "#ffffff")
+    if (meta) meta.setAttribute("content", newTheme === "dark" ? "#090218" : "#c7cbcb")
   }
 
   return (

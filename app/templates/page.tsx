@@ -26,8 +26,8 @@ export default function TemplatesScreen() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20">
-      <header className="p-4 flex justify-between items-center border-b border-border">
-        <h1 className="text-xl font-semibold text-foreground">Шаблоны</h1>
+      <header className="p-3 flex justify-between items-center border-b border-border">
+        <h1 className="text-base font-semibold text-foreground">Шаблоны</h1>
         <ThemeToggle />
       </header>
 
