@@ -23,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
         <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#ffffff" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -33,7 +34,7 @@ export default function RootLayout({
         <Suspense fallback={<div>Loading...</div>}>
           <DayProvider>
             <div className="min-h-screen bg-background max-w-md mx-auto relative">
-              <div className="pb-16">{children}</div>
+              <div className="pb-20">{children}</div>
               <MobileNav />
             </div>
           </DayProvider>

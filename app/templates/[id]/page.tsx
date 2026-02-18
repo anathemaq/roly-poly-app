@@ -201,17 +201,22 @@ export default function TemplateDetailPage() {
               onDragStart={() => handleDragStart(index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDragEnd={handleDragEnd}
-              onTouchStart={(e) => touchDrag.handleTouchStart(e, index)}
-              onTouchMove={(e) => touchDrag.handleTouchMove(e, itemRefs.current.filter(Boolean) as HTMLElement[])}
-              onTouchEnd={() => touchDrag.handleTouchEnd(index)}
-              onTouchCancel={touchDrag.handleTouchCancel}
               className={cn(
-                "p-3 cursor-move touch-none",
-                (draggedIndex === index || touchDrag.draggedIndex === index) && "opacity-50 scale-105",
+                "p-3 transition-all duration-150",
+                (draggedIndex === index || touchDrag.draggedIndex === index) && "opacity-50 scale-[1.03] shadow-lg",
+                touchDrag.dragOverIndex === index && touchDrag.draggedIndex !== index && "ring-2 ring-primary bg-primary/5",
               )}
             >
               <div className="flex items-start gap-2">
-                <GripVertical className="h-5 w-5 text-muted-foreground mt-2 flex-shrink-0" />
+                <div
+                  className="touch-none cursor-grab active:cursor-grabbing pt-2"
+                  onTouchStart={(e) => touchDrag.handleTouchStart(e, index)}
+                  onTouchMove={(e) => touchDrag.handleTouchMove(e, itemRefs.current.filter(Boolean) as HTMLElement[])}
+                  onTouchEnd={() => touchDrag.handleTouchEnd(index)}
+                  onTouchCancel={touchDrag.handleTouchCancel}
+                >
+                  <GripVertical className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                </div>
                 <div className="flex-1 space-y-2 min-w-0">
                   <Input
                     value={activity.name}
