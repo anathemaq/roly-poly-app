@@ -13,6 +13,11 @@ interface ScheduledActivity {
 }
 
 export async function POST(request: Request) {
+  // Skip entirely if Redis or QStash are not configured (e.g. preview environment)
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN || !process.env.QSTASH_TOKEN) {
+    return NextResponse.json({ success: true, scheduled: 0, reason: "not_configured" })
+  }
+
   try {
     const { deviceId, activities, sessionId } = (await request.json()) as {
       deviceId: string
