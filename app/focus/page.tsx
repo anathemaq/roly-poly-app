@@ -36,10 +36,9 @@ export default function FocusScreen() {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col overflow-hidden" style={{ overscrollBehavior: 'none', touchAction: 'none' }}>
-      {/* Theme toggle only, lowered by ~24px */}
-      <div className="absolute right-3 top-2 z-10">
+      <header className="p-3 flex justify-end items-center">
         <ThemeToggle />
-      </div>
+      </header>
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 space-y-6 overflow-hidden">
         <div className="w-full space-y-6">

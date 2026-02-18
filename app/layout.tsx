@@ -32,7 +32,7 @@ export default function RootLayout({
     <html lang="ru">
         <head>
           <link rel="manifest" href="/manifest.json" />
-          <meta name="theme-color" content="#ffffff" />
+          <meta name="theme-color" content="#c7cbcb" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
@@ -41,7 +41,7 @@ export default function RootLayout({
         <Suspense fallback={<div>Loading...</div>}>
           <DayProvider>
             <div className="min-h-screen bg-background max-w-md mx-auto relative">
-              <div className="pb-24">{children}</div>
+              <div className="pb-20">{children}</div>
               <MobileNav />
             </div>
           </DayProvider>
