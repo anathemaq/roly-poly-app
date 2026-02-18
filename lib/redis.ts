@@ -2,7 +2,12 @@ import { Redis } from "@upstash/redis"
 
 let _redis: Redis | null = null
 
-export function getRedis(): Redis {
+function isRedisConfigured(): boolean {
+  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
+}
+
+export function getRedis(): Redis | null {
+  if (!isRedisConfigured()) return null
   if (!_redis) {
     _redis = new Redis({
       url: process.env.KV_REST_API_URL!,
@@ -12,12 +17,15 @@ export function getRedis(): Redis {
   return _redis
 }
 
-/** @deprecated Use getRedis() for lazy initialization */
+// No-op fallback that silently skips when Redis is not configured (e.g. preview)
+const noop = (..._args: unknown[]) => Promise.resolve(null)
+const noopExists = (..._args: unknown[]) => Promise.resolve(0)
+
 export const redis = {
-  get get() { return getRedis().get.bind(getRedis()) },
-  get set() { return getRedis().set.bind(getRedis()) },
-  get del() { return getRedis().del.bind(getRedis()) },
-  get exists() { return getRedis().exists.bind(getRedis()) },
+  get get() { const r = getRedis(); return r ? r.get.bind(r) : noop },
+  get set() { const r = getRedis(); return r ? r.set.bind(r) : noop },
+  get del() { const r = getRedis(); return r ? r.del.bind(r) : noop },
+  get exists() { const r = getRedis(); return r ? r.exists.bind(r) : noopExists },
 } as unknown as Redis
 
 // Redis key patterns

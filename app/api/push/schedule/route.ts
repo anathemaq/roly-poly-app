@@ -13,6 +13,11 @@ interface ScheduledActivity {
 }
 
 export async function POST(request: Request) {
+  // Skip entirely if Redis or QStash are not configured (e.g. preview environment)
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN || !process.env.QSTASH_TOKEN) {
+    return NextResponse.json({ success: true, scheduled: 0, reason: "not_configured" })
+  }
+
   try {
     const { deviceId, activities, sessionId } = (await request.json()) as {
       deviceId: string
@@ -52,7 +57,11 @@ export async function POST(request: Request) {
         ? `https://${process.env.VERCEL_URL}`
         : new URL(request.url).origin
 
-
+    // QStash cannot call loopback/localhost — skip in preview environments
+    const isLoopback = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")
+    if (isLoopback) {
+      return NextResponse.json({ success: true, scheduled: 0, reason: "loopback_skipped" })
+    }
 
     // Schedule a QStash message for each pending activity
     let scheduled = 0
