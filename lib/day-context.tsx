@@ -265,10 +265,15 @@ export function DayProvider({ children }: { children: ReactNode }) {
         ) {
           notifiedActivitiesRef.current.add(activity.id)
           expiredIds.push(activity.id)
-          sendNotification(
-            "Время ��ышло!",
-            `Активность "${activity.name}" завершена`
-          )
+          // Server push (QStash) handles notifications when app is closed.
+          // Only send client-side notification if no server session is active
+          // (i.e. push subscription was never set up).
+          if (!sessionIdRef.current) {
+            sendNotification(
+              "Время вышло!",
+              `Активность "${activity.name}" завершена`
+            )
+          }
         }
       })
 
