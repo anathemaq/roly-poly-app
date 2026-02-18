@@ -32,7 +32,7 @@ export function MobileNav() {
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="flex items-center justify-around h-14 max-w-md mx-auto px-1 mb-1">
+      <div className="flex items-center justify-around h-14 max-w-md mx-auto px-1 mb-3">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))

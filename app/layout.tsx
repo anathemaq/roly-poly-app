@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
@@ -15,6 +15,14 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -23,7 +31,6 @@ export default function RootLayout({
   return (
     <html lang="ru">
         <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#ffffff" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -34,7 +41,7 @@ export default function RootLayout({
         <Suspense fallback={<div>Loading...</div>}>
           <DayProvider>
             <div className="min-h-screen bg-background max-w-md mx-auto relative">
-              <div className="pb-20">{children}</div>
+              <div className="pb-24">{children}</div>
               <MobileNav />
             </div>
           </DayProvider>
