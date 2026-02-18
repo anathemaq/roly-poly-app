@@ -1,9 +1,24 @@
 import { Redis } from "@upstash/redis"
 
-export const redis = new Redis({
-  url: process.env.KV_REST_API_URL!,
-  token: process.env.KV_REST_API_TOKEN!,
-})
+let _redis: Redis | null = null
+
+export function getRedis(): Redis {
+  if (!_redis) {
+    _redis = new Redis({
+      url: process.env.KV_REST_API_URL!,
+      token: process.env.KV_REST_API_TOKEN!,
+    })
+  }
+  return _redis
+}
+
+/** @deprecated Use getRedis() for lazy initialization */
+export const redis = {
+  get get() { return getRedis().get.bind(getRedis()) },
+  get set() { return getRedis().set.bind(getRedis()) },
+  get del() { return getRedis().del.bind(getRedis()) },
+  get exists() { return getRedis().exists.bind(getRedis()) },
+} as unknown as Redis
 
 // Redis key patterns
 export const KEYS = {
