@@ -48,6 +48,7 @@ const STORAGE_KEYS = {
   currentTemplate: "roly-poly-current-template",
   pomodoroSessions: "roly-poly-pomodoro-sessions",
   pomodoroSessionsDate: "roly-poly-pomodoro-sessions-date",
+  sessionId: "roly-poly-session-id",
 } as const
 
 function saveToStorage(key: string, value: unknown) {
@@ -126,6 +127,8 @@ export function DayProvider({ children }: { children: ReactNode }) {
   const [currentTemplate, setCurrentTemplate] = useState<DayTemplate | null>(null)
   const [pausedAt, setPausedAt] = useState<Date | null>(null)
   const [isHydrated, setIsHydrated] = useState(false)
+  // Unique session id -- only the latest startDay session should receive push notifications
+  const sessionIdRef = useRef<string>("")
 
   const [pomodoroPreset, setPomodoroPresetState] = useState<TimerPreset>(POMODORO_PRESETS[0])
   const [pomodoroPhase, setPomodoroPhase] = useState<TimerPhase>("work")
@@ -155,6 +158,11 @@ export function DayProvider({ children }: { children: ReactNode }) {
     const savedCurrentTemplate = loadFromStorage<DayTemplate>(STORAGE_KEYS.currentTemplate)
     if (savedCurrentTemplate) {
       setCurrentTemplate(savedCurrentTemplate)
+    }
+
+    const savedSessionId = loadFromStorage<string>(STORAGE_KEYS.sessionId)
+    if (savedSessionId) {
+      sessionIdRef.current = savedSessionId
     }
 
     // Pomodoro sessions — reset if it's a different day
@@ -215,6 +223,7 @@ export function DayProvider({ children }: { children: ReactNode }) {
 
       const payload = {
         deviceId,
+        sessionId: sessionIdRef.current,
         activities: pendingActivities.map((a) => ({
           id: a.id,
           name: a.name,
@@ -371,6 +380,9 @@ export function DayProvider({ children }: { children: ReactNode }) {
 
   const startDay = (template: DayTemplate) => {
     requestNotificationPermission()
+    // Generate a new unique session id to invalidate any old push notifications
+    sessionIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    saveToStorage(STORAGE_KEYS.sessionId, sessionIdRef.current)
     const now = new Date()
     let currentTime = new Date(now)
 

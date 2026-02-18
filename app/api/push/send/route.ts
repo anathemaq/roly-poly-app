@@ -34,10 +34,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
     }
 
-    const { deviceId, activityId, activityName, endTime } = JSON.parse(body)
+    const { deviceId, sessionId, activityId, activityName, endTime } = JSON.parse(body)
 
     if (!deviceId || !activityId) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
+    }
+
+    // Check if this notification belongs to the currently active session
+    // If a new day was started, the sessionId will be different and we skip
+    if (sessionId) {
+      const activeSession = await redis.get<string>(KEYS.activeSession(deviceId))
+      if (activeSession && activeSession !== sessionId) {
+        return NextResponse.json({ success: true, skipped: true, reason: "stale_session" })
+      }
     }
 
     // Check if already notified (deduplication)

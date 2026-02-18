@@ -55,7 +55,7 @@ function computeLayout(activities: Activity[]): Map<string, { top: number; heigh
     // Ensure this block doesn't overlap with previous blocks
     const top = Math.max(naturalTop, maxBottom)
     layout.set(a.id, { top, height: visualHeight })
-    maxBottom = top + visualHeight + 6 // gap for resize handles between blocks
+    maxBottom = top + visualHeight + 10 // gap for resize handles between blocks
   }
 
   return layout
@@ -108,22 +108,22 @@ const ActivityBlock = memo(function ActivityBlock({
         </div>
       )}
 
-      {/* Bottom resize handle -- positioned OUTSIDE the card */}
+      {/* Bottom resize handle -- large touch target, OUTSIDE the card */}
       <div
-        className="absolute -bottom-3 left-2 right-2 h-6 cursor-ns-resize flex items-center justify-center"
+        className="absolute -bottom-4 left-0 right-0 h-10 cursor-ns-resize flex items-center justify-center touch-none"
         style={{ zIndex: 35 }}
         onPointerDown={(e) => onResizeStart(activity.id, "bottom", e)}
       >
-        <div className="w-10 h-1 rounded-full bg-muted-foreground/40" />
+        <div className="w-12 h-1 rounded-full bg-muted-foreground/30" />
       </div>
 
-      {/* Top resize handle -- positioned OUTSIDE the card */}
+      {/* Top resize handle -- large touch target, OUTSIDE the card */}
       <div
-        className="absolute -top-3 left-2 right-2 h-6 cursor-ns-resize flex items-center justify-center"
+        className="absolute -top-4 left-0 right-0 h-10 cursor-ns-resize flex items-center justify-center touch-none"
         style={{ zIndex: 35 }}
         onPointerDown={(e) => onResizeStart(activity.id, "top", e)}
       >
-        <div className="w-10 h-1 rounded-full bg-muted-foreground/40" />
+        <div className="w-12 h-1 rounded-full bg-muted-foreground/30" />
       </div>
 
       <Card
@@ -402,6 +402,11 @@ export default function TimelineScreen() {
     pointerId: number
   } | null>(null)
   const autoScrollRef = useRef<number>(0)
+  // Prevent popup from opening after a gesture (resize/drag)
+  const gestureJustEndedRef = useRef(false)
+  // Movement threshold: only commit to resize after moving > threshold px
+  const gestureCommittedRef = useRef(false)
+  const GESTURE_THRESHOLD = 6 // px -- prevents accidental resize on scroll
 
   // Find the drop target: which activity would the dragged block go before?
   const findDropTarget = useCallback(
@@ -425,11 +430,19 @@ export default function TimelineScreen() {
     (e: PointerEvent) => {
       const g = gestureRef.current
       if (!g || !timelineRef.current) return
-      e.preventDefault()
 
       const rect = timelineRef.current.getBoundingClientRect()
       const scrollTop = timelineRef.current.scrollTop
       const relY = e.clientY - rect.top + scrollTop
+
+      // Movement threshold: don't commit until finger moves enough
+      if (!gestureCommittedRef.current) {
+        const moved = Math.abs(relY - g.startY)
+        if (moved < GESTURE_THRESHOLD) return // still within scroll tolerance
+        gestureCommittedRef.current = true
+      }
+
+      e.preventDefault()
 
       if (g.type === "drag") {
         // Move the ghost
@@ -504,6 +517,15 @@ export default function TimelineScreen() {
 
       cancelAnimationFrame(autoScrollRef.current)
       setResizingId(null)
+
+      // If the gesture was committed (finger actually moved), suppress the next click
+      if (gestureCommittedRef.current) {
+        gestureJustEndedRef.current = true
+        // Auto-reset after a short delay so future taps work normally
+        setTimeout(() => { gestureJustEndedRef.current = false }, 300)
+      }
+      gestureCommittedRef.current = false
+
       document.removeEventListener("pointermove", onGesturePointerMove)
       document.removeEventListener("pointerup", onGesturePointerUp)
       document.body.style.overflow = ""
@@ -576,6 +598,7 @@ export default function TimelineScreen() {
       const relY = e.clientY - rect.top + scrollTop
       const initialOffsetInBlock = relY - l.top
 
+      gestureCommittedRef.current = false
       gestureRef.current = {
         type: "drag",
         activityId,
@@ -613,11 +636,16 @@ export default function TimelineScreen() {
       const l = layout.get(activityId)
       if (!l) return
 
+      const rect = timelineRef.current.getBoundingClientRect()
+      const scrollTop = timelineRef.current.scrollTop
+      const relY = e.clientY - rect.top + scrollTop
+
+      gestureCommittedRef.current = false
       gestureRef.current = {
         type: "resize",
         activityId,
         edge,
-        startY: e.clientY,
+        startY: relY,
         initialOffsetInBlock: 0,
         startTop: l.top,
         startHeight: l.height,
@@ -642,7 +670,14 @@ export default function TimelineScreen() {
   }, [currentActivities.length])
 
   const handleSelect = useCallback(
-    (id: string) => setSelectedActivity((prev) => (prev === id ? null : id)),
+    (id: string) => {
+      // Suppress popup if a gesture (resize/drag) just ended
+      if (gestureJustEndedRef.current) {
+        gestureJustEndedRef.current = false
+        return
+      }
+      setSelectedActivity((prev) => (prev === id ? null : id))
+    },
     [],
   )
 

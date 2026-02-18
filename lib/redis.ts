@@ -9,6 +9,8 @@ export const redis = new Redis({
 export const KEYS = {
   subscription: (deviceId: string) => `push:sub:${deviceId}`,
   schedule: (deviceId: string) => `push:schedule:${deviceId}`,
+  /** Active session id — only notifications with this sessionId should fire */
+  activeSession: (deviceId: string) => `push:session:${deviceId}`,
   notified: (deviceId: string, activityId: string, endTime?: string) =>
     `push:notified:${deviceId}:${activityId}:${endTime || ""}`,
   queued: (deviceId: string, activityId: string, endTime?: string) =>
