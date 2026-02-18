@@ -118,7 +118,7 @@ export default function StartScreen() {
         {/* Фиксированная кнопка без влияния на прокрутку */}
         <div
           className="fixed left-0 right-0 px-4 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2 bg-gradient-to-t from-background/80 to-transparent"
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 84px)' }}
         >
           <button
             onClick={handleStartDay}
