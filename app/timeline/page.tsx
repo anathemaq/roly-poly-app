@@ -156,7 +156,7 @@ const ActivityBlock = memo(function ActivityBlock({
 
       <Card
         className={cn(
-          "h-full relative overflow-hidden touch-none select-none p-0 gap-0",
+          "h-full relative overflow-hidden select-none p-0 gap-0",
           isSelected && "ring-2 ring-primary shadow-lg",
         )}
         onClick={() => onSelect(activity.id)}
@@ -709,25 +709,14 @@ export default function TimelineScreen() {
     [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
 
-  // Auto-scroll to current activity ONCE on initial mount (after layout is ready)
+  // Auto-scroll to current time ONCE on initial mount
   const hasScrolledRef = useRef(false)
   useEffect(() => {
-    if (hasScrolledRef.current) return
-    if (currentActivities.length === 0 || layout.size === 0 || !timelineRef.current) return
+    if (hasScrolledRef.current || !timelineRef.current) return
     hasScrolledRef.current = true
 
     const now = new Date()
-    const currentActivity = currentActivities.find(
-      (a) => !a.completed && a.startTime && a.endTime && a.startTime <= now && now < a.endTime,
-    )
-
-    let scrollTarget: number
-    if (currentActivity) {
-      const l = layout.get(currentActivity.id)
-      scrollTarget = l ? l.top : now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
-    } else {
-      scrollTarget = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
-    }
+    const scrollTarget = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
 
     // Use rAF to ensure DOM has been painted with the correct scrollHeight
     requestAnimationFrame(() => {
@@ -735,7 +724,7 @@ export default function TimelineScreen() {
         timelineRef.current.scrollTop = Math.max(0, scrollTarget - 120)
       }
     })
-  }, [currentActivities, layout])
+  }, [])
 
   const handleSelect = useCallback(
     (id: string) => {
