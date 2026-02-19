@@ -49,11 +49,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // Check if already notified (deduplication)
-    const notifiedKey = KEYS.notified(deviceId, activityId, endTime)
+    // Check if the activity's endTime still matches the current schedule
+    // If the user changed the time, the stored schedule will have a different endTime
+    const scheduleRaw = await redis.get<string>(KEYS.schedule(deviceId))
+    if (scheduleRaw) {
+      const schedule: Array<{ id: string; endTime: string }> =
+        typeof scheduleRaw === "string" ? JSON.parse(scheduleRaw) : scheduleRaw
+      const currentActivity = schedule.find((a) => a.id === activityId)
+      if (currentActivity && currentActivity.endTime !== endTime) {
+        // endTime was changed — this notification is stale
+        return NextResponse.json({ success: true, skipped: true, reason: "stale_endTime" })
+      }
+    }
+
+    // Check if already notified for this activity (regardless of endTime)
+    const notifiedKey = KEYS.notified(deviceId, activityId)
     const alreadyNotified = await redis.exists(notifiedKey)
     if (alreadyNotified) {
-      return NextResponse.json({ success: true, skipped: true })
+      return NextResponse.json({ success: true, skipped: true, reason: "already_notified" })
     }
 
     // Get the push subscription
@@ -79,8 +92,8 @@ export async function POST(request: Request) {
       })
     )
 
-    // Mark as notified
-    await redis.set(notifiedKey, "1", { ex: TTL.notified })
+    // Mark as notified (keyed by activityId only, prevents re-notification on time changes)
+    await redis.set(KEYS.notified(deviceId, activityId), "1", { ex: TTL.notified })
 
     // Clean up queued flag
     await redis.del(KEYS.queued(deviceId, activityId, endTime))
