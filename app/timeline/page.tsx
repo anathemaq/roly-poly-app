@@ -583,8 +583,6 @@ export default function TimelineScreen() {
 
       document.removeEventListener("pointermove", onGesturePointerMove)
       document.removeEventListener("pointerup", onGesturePointerUp)
-      document.body.style.overflow = ""
-      document.documentElement.style.overflow = ""
 
       if (g?.type === "drag" && dragState) {
         // Perform the reorder
@@ -671,8 +669,6 @@ export default function TimelineScreen() {
         dropTargetId: null,
       })
 
-      document.body.style.overflow = "hidden"
-      document.documentElement.style.overflow = "hidden"
       document.addEventListener("pointermove", stableMove)
       document.addEventListener("pointerup", stableUp)
     },
@@ -707,8 +703,6 @@ export default function TimelineScreen() {
         pointerId: e.pointerId,
       }
 
-      document.body.style.overflow = "hidden"
-      document.documentElement.style.overflow = "hidden"
       document.addEventListener("pointermove", stableMove)
       document.addEventListener("pointerup", stableUp)
     },
@@ -720,32 +714,24 @@ export default function TimelineScreen() {
   useEffect(() => {
     if (hasScrolledRef.current) return
     if (currentActivities.length === 0 || !timelineRef.current) return
+    hasScrolledRef.current = true
 
-    // Wait a tick for layout to settle
-    const rafId = requestAnimationFrame(() => {
-      if (!timelineRef.current) return
-      hasScrolledRef.current = true
+    const now = new Date()
+    const currentActivity = currentActivities.find(
+      (a) => !a.completed && a.startTime && a.endTime && a.startTime <= now && now < a.endTime,
+    )
 
-      const now = new Date()
-      // Find the currently active activity
-      const currentActivity = currentActivities.find(
-        (a) => !a.completed && a.startTime && a.endTime && a.startTime <= now && now < a.endTime,
-      )
+    let scrollTarget: number
+    if (currentActivity) {
+      const l = layout.get(currentActivity.id)
+      scrollTarget = l ? l.top : now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
+    } else {
+      scrollTarget = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
+    }
 
-      let scrollTarget: number
-      if (currentActivity) {
-        const l = layout.get(currentActivity.id)
-        scrollTarget = l ? l.top : now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
-      } else {
-        // No active activity -- scroll to current time
-        scrollTarget = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
-      }
-
-      timelineRef.current.scrollTo({ top: Math.max(0, scrollTarget - 120), behavior: "instant" })
-    })
-
-    return () => cancelAnimationFrame(rafId)
-  }, [currentActivities, layout])
+    timelineRef.current.scrollTop = Math.max(0, scrollTarget - 120)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentActivities.length])
 
   const handleSelect = useCallback(
     (id: string) => {
