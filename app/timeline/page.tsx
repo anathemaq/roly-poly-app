@@ -102,14 +102,20 @@ const ActivityBlock = memo(function ActivityBlock({
   isSelected,
   isDragTarget,
   isResizing,
+  isDragging,
   onSelect,
   onDragStart,
   onResizeStart,
-}: ActivityBlockProps & { isResizing?: boolean }) {
+}: ActivityBlockProps & { isResizing?: boolean; isDragging?: boolean }) {
   return (
     <div
       className="absolute left-1 right-1"
-      style={{ top: `${top}px`, height: `${height}px`, zIndex: isResizing ? 30 : 10 }}
+      style={{
+        top: `${top}px`,
+        height: `${height}px`,
+        zIndex: isResizing ? 30 : 10,
+        opacity: isDragging ? 0.25 : 1,
+      }}
     >
       {/* Drop indicator line above block */}
       {isDragTarget && (
@@ -151,7 +157,6 @@ const ActivityBlock = memo(function ActivityBlock({
       <Card
         className={cn(
           "h-full relative overflow-hidden touch-none select-none p-0 gap-0",
-          "transition-shadow duration-150",
           isSelected && "ring-2 ring-primary shadow-lg",
         )}
         onClick={() => onSelect(activity.id)}
@@ -389,8 +394,8 @@ function DragGhost({ activity, topPx, heightPx }: DragGhostProps) {
       className="absolute left-1 right-1 z-40 pointer-events-none opacity-60"
       style={{ top: `${topPx}px`, height: `${heightPx}px` }}
     >
-      <Card className="h-full ring-2 ring-primary shadow-xl bg-primary/10">
-        <div className="p-1.5 h-full flex items-center">
+      <Card className="h-full ring-2 ring-primary shadow-xl bg-primary/10 p-0 gap-0">
+        <div className="px-2 h-full flex items-center">
           <span className="text-xs font-medium text-foreground truncate">{activity.name}</span>
         </div>
       </Card>
@@ -710,24 +715,37 @@ export default function TimelineScreen() {
     [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
 
-  // Auto-scroll to current active activity (or current time) on mount
+  // Auto-scroll to current activity on initial mount only
+  const hasScrolledRef = useRef(false)
   useEffect(() => {
-    if (currentActivities.length > 0 && timelineRef.current) {
-      // Find the currently active (not completed, started, not ended) activity
+    if (hasScrolledRef.current) return
+    if (currentActivities.length === 0 || !timelineRef.current) return
+
+    // Wait a tick for layout to settle
+    const rafId = requestAnimationFrame(() => {
+      if (!timelineRef.current) return
+      hasScrolledRef.current = true
+
       const now = new Date()
+      // Find the currently active activity
       const currentActivity = currentActivities.find(
         (a) => !a.completed && a.startTime && a.endTime && a.startTime <= now && now < a.endTime,
       )
+
       let scrollTarget: number
       if (currentActivity) {
         const l = layout.get(currentActivity.id)
         scrollTarget = l ? l.top : now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
       } else {
+        // No active activity -- scroll to current time
         scrollTarget = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
       }
-      timelineRef.current.scrollTo({ top: Math.max(0, scrollTarget - 150), behavior: "smooth" })
-    }
-  }, [currentActivities.length, layout])
+
+      timelineRef.current.scrollTo({ top: Math.max(0, scrollTarget - 120), behavior: "instant" })
+    })
+
+    return () => cancelAnimationFrame(rafId)
+  }, [currentActivities, layout])
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -790,25 +808,21 @@ export default function TimelineScreen() {
             {currentActivities.map((activity) => {
               const l = layout.get(activity.id)
               if (!l) return null
-              const isBeingDragged = dragState?.activityId === activity.id
 
               return (
-                <div
+                <ActivityBlock
                   key={activity.id}
-                  style={{ opacity: isBeingDragged ? 0.25 : 1 }}
-                >
-                  <ActivityBlock
-                    activity={activity}
-                    top={l.top}
-                    height={l.height}
-                    isSelected={selectedActivity === activity.id && !dragState}
-                    isDragTarget={dragState?.dropTargetId === activity.id}
-                    isResizing={resizingId === activity.id}
-                    onSelect={handleSelect}
-                    onDragStart={startDrag}
-                    onResizeStart={startResize}
-                  />
-                </div>
+                  activity={activity}
+                  top={l.top}
+                  height={l.height}
+                  isSelected={selectedActivity === activity.id && !dragState}
+                  isDragTarget={dragState?.dropTargetId === activity.id}
+                  isResizing={resizingId === activity.id}
+                  isDragging={dragState?.activityId === activity.id}
+                  onSelect={handleSelect}
+                  onDragStart={startDrag}
+                  onResizeStart={startResize}
+                />
               )
             })}
 
