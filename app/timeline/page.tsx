@@ -42,7 +42,7 @@ function formatDuration(minutes: number) {
 
 // Compute visual layout: top/height for each activity, preventing overlaps
 // Short blocks get minimum height, and subsequent blocks are pushed down
-function computeLayout(activities: Activity[]): Map<string, { top: number; height: number }> {
+function computeLayout(activities: Activity[]): { layout: Map<string, { top: number; height: number }>; totalHeight: number } {
   const layout = new Map<string, { top: number; height: number }>()
   let maxBottom = 0
 
@@ -58,7 +58,10 @@ function computeLayout(activities: Activity[]): Map<string, { top: number; heigh
     maxBottom = top + visualHeight + 10 // gap for resize handles between blocks
   }
 
-  return layout
+  // Ensure the total height is at least TOTAL_HEIGHT, but can extend beyond
+  const totalHeight = Math.max(TOTAL_HEIGHT, maxBottom + 20)
+
+  return { layout, totalHeight }
 }
 
 // --- Activity Block (memoized) ---
@@ -194,10 +197,10 @@ const ActivityBlock = memo(function ActivityBlock({
 // --- Time Scale (static, memoized) ---
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
-const TimeScale = memo(function TimeScale() {
+const TimeScale = memo(function TimeScale({ height }: { height: number }) {
   return (
-    <div className="w-12 bg-muted/30 border-r border-border flex-shrink-0">
-      <div className="relative" style={{ height: `${TOTAL_HEIGHT}px` }}>
+  <div className="w-12 bg-muted/30 border-r border-border flex-shrink-0">
+  <div className="relative" style={{ height: `${height}px` }}>
         {HOURS.map((hour) => (
           <div key={hour} className="absolute w-full" style={{ top: `${hour * PX_PER_HOUR}px` }}>
             <div className="flex items-center h-6 px-1.5">
@@ -359,7 +362,7 @@ export default function TimelineScreen() {
   const router = useRouter()
 
   // Layout computation: prevents short-block overlap
-  const layout = useMemo(() => computeLayout(currentActivities), [currentActivities])
+  const { layout, totalHeight: computedHeight } = useMemo(() => computeLayout(currentActivities), [currentActivities])
 
   // --- Undo ---
   const [undoStack, setUndoStack] = useState<Activity[][]>([])
@@ -721,10 +724,10 @@ export default function TimelineScreen() {
       {/* Timeline */}
       <main className="flex-1 overflow-y-auto" ref={timelineRef}>
         <div className="flex">
-          <TimeScale />
+          <TimeScale height={computedHeight} />
 
           {/* Activities Track */}
-          <div className="flex-1 relative" style={{ height: `${TOTAL_HEIGHT}px` }}>
+          <div className="flex-1 relative" style={{ height: `${computedHeight}px` }}>
             <CurrentTimeIndicator />
 
             {currentActivities.map((activity) => {
