@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     // Schedule a QStash message for each pending activity
     let scheduled = 0
     for (const activity of pending) {
-      const notifiedKey = KEYS.notified(deviceId, activity.id, activity.endTime)
+      const notifiedKey = KEYS.notified(deviceId, activity.id)
       const alreadyNotified = await redis.exists(notifiedKey)
       if (alreadyNotified) continue
 
