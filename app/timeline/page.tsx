@@ -712,6 +712,7 @@ export default function TimelineScreen() {
   // Auto-scroll to current activity on initial mount only (once layout is ready)
   const hasScrolledRef = useRef(false)
   useEffect(() => {
+    console.log("[v0] auto-scroll effect: hasScrolled =", hasScrolledRef.current, "activities =", currentActivities.length, "layout.size =", layout.size, "ref =", !!timelineRef.current)
     if (hasScrolledRef.current) return
     if (currentActivities.length === 0 || layout.size === 0 || !timelineRef.current) return
     hasScrolledRef.current = true
@@ -725,11 +726,16 @@ export default function TimelineScreen() {
     if (currentActivity) {
       const l = layout.get(currentActivity.id)
       scrollTarget = l ? l.top : now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
+      console.log("[v0] auto-scroll: found active activity", currentActivity.name, "layout top =", l?.top, "scrollTarget =", scrollTarget)
     } else {
       scrollTarget = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
+      console.log("[v0] auto-scroll: no active activity, using current time, scrollTarget =", scrollTarget)
     }
 
-    timelineRef.current.scrollTop = Math.max(0, scrollTarget - 120)
+    const el = timelineRef.current
+    console.log("[v0] auto-scroll: scrollHeight =", el.scrollHeight, "clientHeight =", el.clientHeight, "setting scrollTop to", Math.max(0, scrollTarget - 120))
+    el.scrollTop = Math.max(0, scrollTarget - 120)
+    console.log("[v0] auto-scroll: scrollTop after set =", el.scrollTop)
   }, [currentActivities, layout])
 
   const handleSelect = useCallback(
