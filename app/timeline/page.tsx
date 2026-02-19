@@ -709,11 +709,11 @@ export default function TimelineScreen() {
     [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
 
-  // Auto-scroll to current activity on initial mount only
+  // Auto-scroll to current activity on initial mount only (once layout is ready)
   const hasScrolledRef = useRef(false)
   useEffect(() => {
     if (hasScrolledRef.current) return
-    if (currentActivities.length === 0 || !timelineRef.current) return
+    if (currentActivities.length === 0 || layout.size === 0 || !timelineRef.current) return
     hasScrolledRef.current = true
 
     const now = new Date()
@@ -730,8 +730,7 @@ export default function TimelineScreen() {
     }
 
     timelineRef.current.scrollTop = Math.max(0, scrollTarget - 120)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentActivities.length])
+  }, [currentActivities, layout])
 
   const handleSelect = useCallback(
     (id: string) => {
