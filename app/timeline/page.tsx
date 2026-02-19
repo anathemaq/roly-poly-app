@@ -40,28 +40,58 @@ function formatDuration(minutes: number) {
   return `${h}ч ${m}м`
 }
 
-// Compute visual layout: top/height for each activity, preventing overlaps
-// Short blocks get minimum height, and subsequent blocks are pushed down
-function computeLayout(activities: Activity[]): { layout: Map<string, { top: number; height: number }>; totalHeight: number } {
+// Compute visual layout: top/height for each activity, preventing overlaps.
+// Positions are relative to dayStartHour so activities past midnight continue downward.
+function computeLayout(activities: Activity[]): {
+  layout: Map<string, { top: number; height: number }>
+  totalHeight: number
+  dayStartHour: number
+  totalHours: number
+} {
   const layout = new Map<string, { top: number; height: number }>()
+
+  // Determine the earliest start hour (floored) for the time scale origin
+  let dayStartHour = 24
+  for (const a of activities) {
+    if (!a.startTime) continue
+    dayStartHour = Math.min(dayStartHour, a.startTime.getHours())
+  }
+  if (dayStartHour === 24) dayStartHour = 0
+
+  // Find the first activity's start date (calendar day) to detect midnight crossings
+  const firstActivity = activities.find((a) => a.startTime)
+  const dayStartDate = firstActivity?.startTime
+    ? new Date(firstActivity.startTime.getFullYear(), firstActivity.startTime.getMonth(), firstActivity.startTime.getDate())
+    : new Date()
+
   let maxBottom = 0
 
   for (const a of activities) {
     if (!a.startTime) continue
-    const naturalTop = a.startTime.getHours() * PX_PER_HOUR + a.startTime.getMinutes() * PX_PER_MINUTE
+    // Minutes since dayStartDate 00:00
+    const minutesSinceMidnight = (a.startTime.getTime() - dayStartDate.getTime()) / 60000
+    // Position relative to dayStartHour
+    const naturalTop = (minutesSinceMidnight - dayStartHour * 60) * PX_PER_MINUTE
     const naturalHeight = minutesToPx(a.duration)
     const visualHeight = Math.max(MIN_BLOCK_HEIGHT, naturalHeight)
 
-    // Ensure this block doesn't overlap with previous blocks
     const top = Math.max(naturalTop, maxBottom)
     layout.set(a.id, { top, height: visualHeight })
-    maxBottom = top + visualHeight + 10 // gap for resize handles between blocks
+    maxBottom = top + visualHeight + 10
   }
 
-  // Ensure the total height is at least TOTAL_HEIGHT, but can extend beyond
-  const totalHeight = Math.max(TOTAL_HEIGHT, maxBottom + 20)
+  // How many hours the scale needs to cover
+  const lastActivity = [...activities].reverse().find((a) => a.endTime)
+  let endHour = 24
+  if (lastActivity?.endTime) {
+    const minutesSinceMidnight = (lastActivity.endTime.getTime() - dayStartDate.getTime()) / 60000
+    endHour = Math.max(24, Math.ceil(minutesSinceMidnight / 60))
+  }
+  const totalHours = endHour - dayStartHour
 
-  return { layout, totalHeight }
+  const totalHeight = Math.max(totalHours * PX_PER_HOUR, maxBottom + 20)
+
+  return { layout, totalHeight, dayStartHour, totalHours }
 }
 
 // --- Activity Block (memoized) ---
@@ -97,8 +127,8 @@ const ActivityBlock = memo(function ActivityBlock({
         <div className="absolute -top-1.5 left-0 right-0 h-1 bg-primary rounded-full z-30 shadow-sm shadow-primary/40" />
       )}
 
-      {/* Floating label: always visible above block when block is too short for content */}
-      {height < 50 && (
+      {/* Floating label: only for ultra-tiny blocks (<30px) */}
+      {height < 30 && (
         <div
           className="absolute left-0 right-0 pointer-events-none"
           style={{ bottom: `${height + 2}px`, zIndex: 35 }}
@@ -138,16 +168,21 @@ const ActivityBlock = memo(function ActivityBlock({
         onClick={() => onSelect(activity.id)}
       >
         <div className="px-2 py-0.5 h-full flex flex-col justify-center overflow-hidden">
-          {height < 30 ? (
+          {height < 24 ? (
             /* Ultra-tiny: just colored bar */
             <div className="w-full h-1 bg-primary/50 rounded-full" />
-          ) : height < 50 ? (
-            /* Short: name only, truncated */
-            <span className="text-[11px] font-medium text-foreground truncate">
-              {activity.name}
-            </span>
-          ) : height < 65 ? (
-            /* Compact: name + duration on one line */
+          ) : height < 36 ? (
+            /* Tiny: name + duration inline */
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-medium text-foreground truncate flex-1">
+                {activity.name}
+              </span>
+              <span className="text-[9px] text-primary whitespace-nowrap">
+                {formatDuration(activity.duration)}
+              </span>
+            </div>
+          ) : height < 55 ? (
+            /* Short (30min = 50px): name + duration on one line */
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-medium text-foreground truncate flex-1">
                 {activity.name}
@@ -156,18 +191,18 @@ const ActivityBlock = memo(function ActivityBlock({
                 {formatDuration(activity.duration)}
               </span>
             </div>
-          ) : height < 85 ? (
-            /* Medium: name + time */
+          ) : height < 75 ? (
+            /* Medium (50min = 83px): name + time range */
             <>
               <span className="text-xs font-medium text-foreground truncate leading-snug">
                 {activity.name}
               </span>
               <span className="text-[10px] text-muted-foreground truncate mt-0.5">
-                {formatTime(activity.startTime)} - {formatTime(activity.endTime)}
+                {formatTime(activity.startTime)} - {formatTime(activity.endTime)} &middot; {formatDuration(activity.duration)}
               </span>
             </>
           ) : (
-            /* Full: name + time + duration */
+            /* Full: name + time + duration on separate line */
             <>
               <span className="text-xs font-medium text-foreground truncate leading-snug">
                 {activity.name}
@@ -194,36 +229,59 @@ const ActivityBlock = memo(function ActivityBlock({
   )
 })
 
-// --- Time Scale (static, memoized) ---
-const HOURS = Array.from({ length: 24 }, (_, i) => i)
+// --- Time Scale (dynamic, memoized) ---
+const TimeScale = memo(function TimeScale({
+  height,
+  startHour,
+  hourCount,
+}: {
+  height: number
+  startHour: number
+  hourCount: number
+}) {
+  const hours = useMemo(
+    () => Array.from({ length: Math.ceil(hourCount) + 1 }, (_, i) => startHour + i),
+    [startHour, hourCount],
+  )
 
-const TimeScale = memo(function TimeScale({ height }: { height: number }) {
   return (
-  <div className="w-12 bg-muted/30 border-r border-border flex-shrink-0">
-  <div className="relative" style={{ height: `${height}px` }}>
-        {HOURS.map((hour) => (
-          <div key={hour} className="absolute w-full" style={{ top: `${hour * PX_PER_HOUR}px` }}>
-            <div className="flex items-center h-6 px-1.5">
-              <span className="text-[10px] font-medium text-muted-foreground">
-                {hour.toString().padStart(2, "0")}:00
-              </span>
+    <div className="w-14 bg-muted/30 border-r border-border flex-shrink-0">
+      <div className="relative" style={{ height: `${height}px` }}>
+        {hours.map((hour) => {
+          const displayHour = hour % 24
+          const isNextDay = hour >= 24
+          const topPx = (hour - startHour) * PX_PER_HOUR
+
+          return (
+            <div key={hour} className="absolute w-full" style={{ top: `${topPx}px` }}>
+              <div className="flex items-center h-6 px-1">
+                <span
+                  className={cn(
+                    "text-[10px] font-medium",
+                    isNextDay ? "text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  {displayHour.toString().padStart(2, "0")}:00
+                  {isNextDay && <span className="text-[8px] ml-0.5 opacity-70">+1</span>}
+                </span>
+              </div>
+              {[15, 30, 45].map((minute) => (
+                <div
+                  key={minute}
+                  className="absolute w-1.5 h-px bg-border"
+                  style={{ top: `${minutesToPx(minute)}px`, left: "9px" }}
+                />
+              ))}
             </div>
-            {[15, 30, 45].map((minute) => (
-              <div
-                key={minute}
-                className="absolute w-1.5 h-px bg-border"
-                style={{ top: `${minutesToPx(minute)}px`, left: "9px" }}
-              />
-            ))}
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
 })
 
 // --- Current Time Indicator ---
-function CurrentTimeIndicator() {
+function CurrentTimeIndicator({ startHour }: { startHour: number }) {
   const [now, setNow] = useState(new Date())
 
   useEffect(() => {
@@ -231,7 +289,10 @@ function CurrentTimeIndicator() {
     return () => clearInterval(id)
   }, [])
 
-  const top = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
+  const minutesSinceStart = (now.getHours() - startHour) * 60 + now.getMinutes()
+  const top = minutesSinceStart * PX_PER_MINUTE
+
+  if (top < 0) return null // Before the scale start
 
   return (
     <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: `${top}px` }}>
@@ -362,7 +423,10 @@ export default function TimelineScreen() {
   const router = useRouter()
 
   // Layout computation: prevents short-block overlap
-  const { layout, totalHeight: computedHeight } = useMemo(() => computeLayout(currentActivities), [currentActivities])
+  const { layout, totalHeight: computedHeight, dayStartHour, totalHours } = useMemo(
+    () => computeLayout(currentActivities),
+    [currentActivities],
+  )
 
   // --- Undo ---
   const [undoStack, setUndoStack] = useState<Activity[][]>([])
@@ -495,12 +559,14 @@ export default function TimelineScreen() {
           updateActivity(activity.id, { duration: newDuration })
         } else {
           // Top edge: move start, keep end fixed
+          // endMin and newStartMin are in absolute minutes since midnight
           const endMin =
             activity.startTime.getHours() * 60 +
             activity.startTime.getMinutes() +
             activity.duration
-          let newStartMin = pxToMinutes(relY)
-          newStartMin = Math.max(0, Math.min(endMin - MIN_DURATION, newStartMin))
+          // relY is relative to dayStartHour, so add dayStartHour offset
+          let newStartMin = pxToMinutes(relY) + dayStartHour * 60
+          newStartMin = Math.max(dayStartHour * 60, Math.min(endMin - MIN_DURATION, newStartMin))
           const newDuration = endMin - newStartMin
 
           const newStart = new Date(activity.startTime)
@@ -510,7 +576,7 @@ export default function TimelineScreen() {
         }
       }
     },
-    [currentActivities, updateActivity, findDropTarget],
+    [currentActivities, updateActivity, findDropTarget, dayStartHour],
   )
 
   const onGesturePointerUp = useCallback(
@@ -666,8 +732,8 @@ export default function TimelineScreen() {
   // Auto-scroll to current time on mount
   useEffect(() => {
     if (currentActivities.length > 0 && timelineRef.current) {
-      const now = new Date()
-      const pos = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
+  const now = new Date()
+  const pos = (now.getHours() - dayStartHour) * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
       timelineRef.current.scrollTo({ top: Math.max(0, pos - 200), behavior: "smooth" })
     }
   }, [currentActivities.length])
@@ -724,11 +790,11 @@ export default function TimelineScreen() {
       {/* Timeline */}
       <main className="flex-1 overflow-y-auto" ref={timelineRef}>
         <div className="flex">
-          <TimeScale height={computedHeight} />
+          <TimeScale height={computedHeight} startHour={dayStartHour} hourCount={totalHours} />
 
           {/* Activities Track */}
           <div className="flex-1 relative" style={{ height: `${computedHeight}px` }}>
-            <CurrentTimeIndicator />
+            <CurrentTimeIndicator startHour={dayStartHour} />
 
             {currentActivities.map((activity) => {
               const l = layout.get(activity.id)
