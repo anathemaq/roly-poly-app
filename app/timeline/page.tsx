@@ -156,7 +156,7 @@ const ActivityBlock = memo(function ActivityBlock({
 
       <Card
         className={cn(
-          "h-full relative overflow-hidden touch-none select-none p-0 gap-0",
+          "h-full relative overflow-hidden select-none p-0 gap-0",
           isSelected && "ring-2 ring-primary shadow-lg",
         )}
         onClick={() => onSelect(activity.id)}
@@ -709,29 +709,22 @@ export default function TimelineScreen() {
     [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
 
-  // Auto-scroll to current activity on initial mount only
+  // Auto-scroll to current time ONCE on initial mount
   const hasScrolledRef = useRef(false)
   useEffect(() => {
-    if (hasScrolledRef.current) return
-    if (currentActivities.length === 0 || !timelineRef.current) return
+    if (hasScrolledRef.current || !timelineRef.current) return
     hasScrolledRef.current = true
 
     const now = new Date()
-    const currentActivity = currentActivities.find(
-      (a) => !a.completed && a.startTime && a.endTime && a.startTime <= now && now < a.endTime,
-    )
+    const scrollTarget = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
 
-    let scrollTarget: number
-    if (currentActivity) {
-      const l = layout.get(currentActivity.id)
-      scrollTarget = l ? l.top : now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
-    } else {
-      scrollTarget = now.getHours() * PX_PER_HOUR + now.getMinutes() * PX_PER_MINUTE
-    }
-
-    timelineRef.current.scrollTop = Math.max(0, scrollTarget - 120)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentActivities.length])
+    // Use rAF to ensure DOM has been painted with the correct scrollHeight
+    requestAnimationFrame(() => {
+      if (timelineRef.current) {
+        timelineRef.current.scrollTop = Math.max(0, scrollTarget - 120)
+      }
+    })
+  }, [])
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -748,7 +741,7 @@ export default function TimelineScreen() {
   // --- Empty state ---
   if (currentActivities.length === 0) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="h-screen bg-background flex items-center justify-center p-6">
         <Card className="p-8 text-center space-y-4 max-w-md">
           <Calendar className="h-12 w-12 mx-auto text-muted-foreground" />
           <h2 className="text-xl font-semibold text-foreground">День не начат</h2>
@@ -772,7 +765,7 @@ export default function TimelineScreen() {
     : null
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <header
         className="px-3 pb-3 flex justify-between items-center border-b border-border"
