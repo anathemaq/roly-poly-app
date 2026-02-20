@@ -222,11 +222,11 @@ const ActivityBlock = memo(function ActivityBlock({
           <div className="w-1 h-4 rounded-full bg-muted-foreground/40" />
         </div>
 
-        {/* Main area: tap to select (show resize handles), long-press to drag */}
+        {/* Main area: tap to select, drag when selected (touch-action:none prevents scroll stealing) */}
         <div
-          className="absolute left-0 top-0 bottom-0 right-10 z-10"
+          className={cn("absolute left-0 top-0 bottom-0 right-10 z-10", isSelected && "touch-none")}
           onClick={(e) => { e.stopPropagation(); onSelect(activity.id) }}
-          onPointerDown={(e) => onDragStart(activity.id, e)}
+          onPointerDown={isSelected ? (e) => onDragStart(activity.id, e) : undefined}
         />
       </Card>
     </div>
@@ -472,20 +472,18 @@ export default function TimelineScreen() {
   // Movement threshold: only commit to resize after moving > threshold px
   const gestureCommittedRef = useRef(false)
   const GESTURE_THRESHOLD = 10 // px -- prevents accidental resize on scroll
-  // Long press timer for drag
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const LONG_PRESS_MS = 400
 
-  // Pointer move handler -- only for resize (drag is handled by touch events)
+  // Pointer move handler for both drag and resize
   const onGesturePointerMove = useCallback(
     (e: PointerEvent) => {
       const g = gestureRef.current
-      if (!g || g.type !== "resize" || !timelineRef.current) return
+      if (!g || !timelineRef.current) return
 
       const rect = timelineRef.current.getBoundingClientRect()
       const scrollTop = timelineRef.current.scrollTop
       const relY = e.clientY - rect.top + scrollTop
 
+      // Movement threshold: don't commit until finger moves enough
       if (!gestureCommittedRef.current) {
         const moved = Math.abs(relY - g.startY)
         if (moved < GESTURE_THRESHOLD) return
@@ -494,30 +492,77 @@ export default function TimelineScreen() {
 
       e.preventDefault()
 
-      const activity = currentActivities.find((a) => a.id === g.activityId)
-      if (!activity || !activity.startTime) return
+      if (g.type === "drag") {
+        // Move the ghost
+        const ghostTop = Math.max(0, relY - g.initialOffsetInBlock)
+        const ghostHeight = g.startHeight
+        const ghostCenter = ghostTop + ghostHeight / 2
 
-      if (g.edge === "bottom") {
-        const currentTop = g.startTop
-        const newHeightPx = relY - currentTop
-        const newDuration = Math.max(MIN_DURATION, pxToMinutes(newHeightPx))
-        updateActivity(activity.id, { duration: newDuration })
-      } else {
-        const endMin =
-          activity.startTime.getHours() * 60 +
-          activity.startTime.getMinutes() +
-          activity.duration
-        let newStartMin = pxToMinutes(relY)
-        newStartMin = Math.max(0, Math.min(endMin - MIN_DURATION, newStartMin))
-        const newDuration = endMin - newStartMin
+        // Find drop target
+        let dropTargetId: string | null = null
+        for (const a of currentActivities) {
+          if (a.id === g.activityId) continue
+          const l = layout.get(a.id)
+          if (!l) continue
+          if (ghostCenter < l.top + l.height / 2) {
+            dropTargetId = a.id
+            break
+          }
+        }
 
-        const newStart = new Date(activity.startTime)
-        newStart.setHours(0, 0, 0, 0)
-        newStart.setMinutes(newStartMin, 0, 0)
-        updateActivity(activity.id, { startTime: newStart, duration: newDuration })
+        setDragState({
+          activityId: g.activityId,
+          ghostTop,
+          ghostHeight,
+          dropTargetId,
+        })
+
+        // Auto-scroll when pointer is near the viewport edges
+        const EDGE_ZONE = 60
+        const SCROLL_SPEED = 8
+        const pointerInViewport = e.clientY - rect.top
+        const el = timelineRef.current
+
+        cancelAnimationFrame(autoScrollRef.current)
+        if (pointerInViewport < EDGE_ZONE) {
+          const tick = () => {
+            el.scrollTop = Math.max(0, el.scrollTop - SCROLL_SPEED)
+            autoScrollRef.current = requestAnimationFrame(tick)
+          }
+          autoScrollRef.current = requestAnimationFrame(tick)
+        } else if (pointerInViewport > rect.height - EDGE_ZONE) {
+          const tick = () => {
+            el.scrollTop = Math.min(el.scrollHeight - el.clientHeight, el.scrollTop + SCROLL_SPEED)
+            autoScrollRef.current = requestAnimationFrame(tick)
+          }
+          autoScrollRef.current = requestAnimationFrame(tick)
+        }
+      } else if (g.type === "resize") {
+        const activity = currentActivities.find((a) => a.id === g.activityId)
+        if (!activity || !activity.startTime) return
+
+        if (g.edge === "bottom") {
+          const currentTop = g.startTop
+          const newHeightPx = relY - currentTop
+          const newDuration = Math.max(MIN_DURATION, pxToMinutes(newHeightPx))
+          updateActivity(activity.id, { duration: newDuration })
+        } else {
+          const endMin =
+            activity.startTime.getHours() * 60 +
+            activity.startTime.getMinutes() +
+            activity.duration
+          let newStartMin = pxToMinutes(relY)
+          newStartMin = Math.max(0, Math.min(endMin - MIN_DURATION, newStartMin))
+          const newDuration = endMin - newStartMin
+
+          const newStart = new Date(activity.startTime)
+          newStart.setHours(0, 0, 0, 0)
+          newStart.setMinutes(newStartMin, 0, 0)
+          updateActivity(activity.id, { startTime: newStart, duration: newDuration })
+        }
       }
     },
-    [currentActivities, updateActivity],
+    [currentActivities, layout, updateActivity],
   )
 
   const onGesturePointerUp = useCallback(
@@ -528,7 +573,6 @@ export default function TimelineScreen() {
       cancelAnimationFrame(autoScrollRef.current)
       setResizingId(null)
 
-      // If the gesture was committed (finger actually moved), suppress the next click
       const wasCommitted = gestureCommittedRef.current
       if (wasCommitted) {
         gestureJustEndedRef.current = true
@@ -538,8 +582,45 @@ export default function TimelineScreen() {
 
       document.removeEventListener("pointermove", onGesturePointerMove)
       document.removeEventListener("pointerup", onGesturePointerUp)
+
+      // Handle drag completion
+      if (g?.type === "drag" && dragState && wasCommitted) {
+        const { activityId } = g
+        const { dropTargetId } = dragState
+        setDragState(null)
+
+        const draggedIdx = currentActivities.findIndex((a) => a.id === activityId)
+        if (draggedIdx === -1) return
+
+        const dragged = currentActivities[draggedIdx]
+        const without = currentActivities.filter((a) => a.id !== activityId)
+
+        let insertIdx: number
+        if (dropTargetId === null) {
+          insertIdx = without.length
+        } else {
+          insertIdx = without.findIndex((a) => a.id === dropTargetId)
+          if (insertIdx === -1) insertIdx = without.length
+        }
+
+        const reordered = [...without.slice(0, insertIdx), dragged, ...without.slice(insertIdx)]
+        const result: Activity[] = []
+        let nextStart = reordered[0]?.startTime || new Date()
+
+        for (let i = 0; i < reordered.length; i++) {
+          const a = reordered[i]
+          const startTime = i === 0 ? nextStart : new Date(nextStart)
+          const endTime = new Date(startTime.getTime() + a.duration * 60000)
+          result.push({ ...a, startTime, endTime })
+          nextStart = endTime
+        }
+
+        reorderActivities(result)
+      } else {
+        setDragState(null)
+      }
     },
-    [onGesturePointerMove],
+    [onGesturePointerMove, dragState, currentActivities, reorderActivities],
   )
 
   // Store latest callbacks in refs so event listeners always use fresh closures
@@ -550,20 +631,6 @@ export default function TimelineScreen() {
 
   const stableMove = useCallback((e: PointerEvent) => onMoveRef.current(e), [])
   const stableUp = useCallback((e: PointerEvent) => onUpRef.current(e), [])
-
-  // Find the drop target: which activity would the dragged block go before?
-  const findDropTarget = useCallback(
-    (dragId: string, ghostCenterY: number): string | null => {
-      for (const a of currentActivities) {
-        if (a.id === dragId) continue
-        const l = layout.get(a.id)
-        if (!l) continue
-        if (ghostCenterY < l.top + l.height / 2) return a.id
-      }
-      return null
-    },
-    [currentActivities, layout],
-  )
 
   // --- Drag: uses pointer events. Works because selected block's drag handle
   // has touch-action:none, so the browser won't steal the gesture for scrolling.
