@@ -41,6 +41,7 @@
     "@upstash/qstash": "^2.7.17",
     "@upstash/redis": "^1.34.3",
     "@vercel/analytics": "latest",
+    "@vercel/blob": "^2.3.0",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
