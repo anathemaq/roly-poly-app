@@ -159,7 +159,7 @@ export default function TemplateDetailPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20">
-      <header className="p-4 flex items-center justify-between border-b border-border">
+      <header className="px-4 pb-4 flex items-center justify-between border-b border-border" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
         <Button variant="ghost" size="icon" onClick={() => router.push("/templates")} className="h-9 w-9">
           <ArrowLeft className="h-5 w-5" />
         </Button>
