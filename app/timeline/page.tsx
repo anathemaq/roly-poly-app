@@ -586,10 +586,18 @@ export default function TimelineScreen() {
       cancelAnimationFrame(autoScrollRef.current)
       setResizingId(null)
 
+      // Release pointer capture if we set it
+      if (dragElementRef.current && g?.pointerId) {
+        try {
+          dragElementRef.current.releasePointerCapture(g.pointerId)
+        } catch { /* already released */ }
+        dragElementRef.current = null
+      }
+
       // If the gesture was committed (finger actually moved), suppress the next click
-      if (gestureCommittedRef.current) {
+      const wasCommitted = gestureCommittedRef.current
+      if (wasCommitted) {
         gestureJustEndedRef.current = true
-        // Auto-reset after a short delay so future taps work normally
         setTimeout(() => { gestureJustEndedRef.current = false }, 300)
       }
       gestureCommittedRef.current = false
@@ -599,7 +607,7 @@ export default function TimelineScreen() {
 
       if (g?.type === "drag" && dragState) {
         // Only reorder if the finger actually moved (committed gesture)
-        if (gestureCommittedRef.current) {
+        if (wasCommitted) {
           const { activityId, dropTargetId } = dragState
           setDragState(null)
 
@@ -659,6 +667,9 @@ export default function TimelineScreen() {
     }
   }, [])
 
+  // Ref to the DOM element that initiated the drag (for setPointerCapture)
+  const dragElementRef = useRef<HTMLElement | null>(null)
+
   const startDrag = useCallback(
     (activityId: string, e: React.PointerEvent) => {
       e.stopPropagation()
@@ -674,11 +685,23 @@ export default function TimelineScreen() {
       const relY = e.clientY - rect.top + scrollTop
       const initialOffsetInBlock = relY - l.top
       const startClientY = e.clientY
+      const pointerId = e.pointerId
+      const target = e.currentTarget as HTMLElement
+      dragElementRef.current = target
 
       // Start long press timer -- only activate drag after hold
       cancelLongPress()
       longPressTimerRef.current = setTimeout(() => {
         longPressTimerRef.current = null
+
+        // Capture the pointer so we keep receiving events even though
+        // the browser already started a scroll gesture
+        try {
+          target.setPointerCapture(pointerId)
+        } catch {
+          // Pointer may already be gone
+        }
+
         saveSnapshot()
 
         gestureCommittedRef.current = false
@@ -689,7 +712,7 @@ export default function TimelineScreen() {
           initialOffsetInBlock,
           startTop: l.top,
           startHeight: l.height,
-          pointerId: e.pointerId,
+          pointerId,
         }
 
         setDragState({
@@ -756,29 +779,33 @@ export default function TimelineScreen() {
     [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
 
-  // Block horizontal swipe (Safari back/forward navigation)
+  // Block horizontal swipe on entire page (Safari back/forward navigation)
   useEffect(() => {
-    const el = timelineRef.current
-    if (!el) return
     let startX = 0
     let startY = 0
+    let decided = false
     const onTouchStart = (e: TouchEvent) => {
       startX = e.touches[0].clientX
       startY = e.touches[0].clientY
+      decided = false
     }
     const onTouchMove = (e: TouchEvent) => {
+      if (decided) return
       const dx = Math.abs(e.touches[0].clientX - startX)
       const dy = Math.abs(e.touches[0].clientY - startY)
-      // If horizontal movement is dominant, block it (prevents Safari back-swipe)
-      if (dx > 8 && dx > dy) {
-        e.preventDefault()
+      if (dx > 6 || dy > 6) {
+        decided = true
+        // If horizontal movement is dominant, block it
+        if (dx > dy) {
+          e.preventDefault()
+        }
       }
     }
-    el.addEventListener("touchstart", onTouchStart, { passive: true })
-    el.addEventListener("touchmove", onTouchMove, { passive: false })
+    document.addEventListener("touchstart", onTouchStart, { passive: true })
+    document.addEventListener("touchmove", onTouchMove, { passive: false })
     return () => {
-      el.removeEventListener("touchstart", onTouchStart)
-      el.removeEventListener("touchmove", onTouchMove)
+      document.removeEventListener("touchstart", onTouchStart)
+      document.removeEventListener("touchmove", onTouchMove)
     }
   }, [])
 
