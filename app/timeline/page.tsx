@@ -551,171 +551,29 @@ export default function TimelineScreen() {
   const stableMove = useCallback((e: PointerEvent) => onMoveRef.current(e), [])
   const stableUp = useCallback((e: PointerEvent) => onUpRef.current(e), [])
 
-  // --- Touch-based long-press drag (works on iOS Safari) ---
-  // On iOS, once the browser claims a touch for scrolling, pointer events stop.
-  // We use touch events directly and call preventDefault on touchmove once the
-  // long-press activates, which takes control away from the scroll handler.
-  const dragActiveRef = useRef(false)
-  const dragDataRef = useRef<{
-    activityId: string
-    initialOffsetInBlock: number
-    startTop: number
-    startHeight: number
-  } | null>(null)
-
-  const cancelLongPress = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current)
-      longPressTimerRef.current = null
-    }
-  }, [])
-
-  // These handlers are attached to document during a drag touch
-  const onDragTouchMove = useCallback(
-    (e: TouchEvent) => {
-      if (!dragActiveRef.current || !dragDataRef.current || !timelineRef.current) return
-      // Prevent scrolling -- we own this gesture now
-      e.preventDefault()
-
-      const touch = e.touches[0]
-      const rect = timelineRef.current.getBoundingClientRect()
-      const scrollTop = timelineRef.current.scrollTop
-      const relY = touch.clientY - rect.top + scrollTop
-      const d = dragDataRef.current
-
-      if (!gestureCommittedRef.current) {
-        gestureCommittedRef.current = true
-      }
-
-      const ghostTop = Math.max(0, relY - d.initialOffsetInBlock)
-      const ghostHeight = d.startHeight
-      const ghostCenter = ghostTop + ghostHeight / 2
-
-      // Find drop target
-      let dropTargetId: string | null = null
+  // Find the drop target: which activity would the dragged block go before?
+  const findDropTarget = useCallback(
+    (dragId: string, ghostCenterY: number): string | null => {
       for (const a of currentActivities) {
-        if (a.id === d.activityId) continue
+        if (a.id === dragId) continue
         const l = layout.get(a.id)
         if (!l) continue
-        if (ghostCenter < l.top + l.height / 2) {
-          dropTargetId = a.id
-          break
-        }
+        if (ghostCenterY < l.top + l.height / 2) return a.id
       }
-
-      setDragState({
-        activityId: d.activityId,
-        ghostTop,
-        ghostHeight,
-        dropTargetId,
-      })
-
-      // Auto-scroll near edges
-      const EDGE_ZONE = 60
-      const SCROLL_SPEED = 8
-      const pointerInViewport = touch.clientY - rect.top
-      const el = timelineRef.current
-
-      cancelAnimationFrame(autoScrollRef.current)
-      if (pointerInViewport < EDGE_ZONE) {
-        const tick = () => {
-          el.scrollTop = Math.max(0, el.scrollTop - SCROLL_SPEED)
-          autoScrollRef.current = requestAnimationFrame(tick)
-        }
-        autoScrollRef.current = requestAnimationFrame(tick)
-      } else if (pointerInViewport > rect.height - EDGE_ZONE) {
-        const tick = () => {
-          el.scrollTop = Math.min(el.scrollHeight - el.clientHeight, el.scrollTop + SCROLL_SPEED)
-          autoScrollRef.current = requestAnimationFrame(tick)
-        }
-        autoScrollRef.current = requestAnimationFrame(tick)
-      }
+      return null
     },
     [currentActivities, layout],
   )
 
-  const onDragTouchEnd = useCallback(
-    () => {
-      cancelAnimationFrame(autoScrollRef.current)
-      cancelLongPress()
-
-      if (!dragActiveRef.current) {
-        // Long press never fired -- clean up
-        dragActiveRef.current = false
-        dragDataRef.current = null
-        document.removeEventListener("touchmove", onDragTouchMove)
-        document.removeEventListener("touchend", onDragTouchEnd)
-        document.removeEventListener("touchcancel", onDragTouchEnd)
-        return
-      }
-
-      const wasCommitted = gestureCommittedRef.current
-      if (wasCommitted) {
-        gestureJustEndedRef.current = true
-        setTimeout(() => { gestureJustEndedRef.current = false }, 300)
-      }
-      gestureCommittedRef.current = false
-
-      const d = dragDataRef.current
-      dragActiveRef.current = false
-      dragDataRef.current = null
-
-      document.removeEventListener("touchmove", onDragTouchMove)
-      document.removeEventListener("touchend", onDragTouchEnd)
-      document.removeEventListener("touchcancel", onDragTouchEnd)
-
-      if (d && dragState && wasCommitted) {
-        const { activityId } = d
-        const { dropTargetId } = dragState
-        setDragState(null)
-
-        const draggedIdx = currentActivities.findIndex((a) => a.id === activityId)
-        if (draggedIdx === -1) return
-
-        const dragged = currentActivities[draggedIdx]
-        const without = currentActivities.filter((a) => a.id !== activityId)
-
-        let insertIdx: number
-        if (dropTargetId === null) {
-          insertIdx = without.length
-        } else {
-          insertIdx = without.findIndex((a) => a.id === dropTargetId)
-          if (insertIdx === -1) insertIdx = without.length
-        }
-
-        const reordered = [...without.slice(0, insertIdx), dragged, ...without.slice(insertIdx)]
-        const result: Activity[] = []
-        let nextStart = reordered[0]?.startTime || new Date()
-
-        for (let i = 0; i < reordered.length; i++) {
-          const a = reordered[i]
-          const startTime = i === 0 ? nextStart : new Date(nextStart)
-          const endTime = new Date(startTime.getTime() + a.duration * 60000)
-          result.push({ ...a, startTime, endTime })
-          nextStart = endTime
-        }
-
-        reorderActivities(result)
-      } else {
-        setDragState(null)
-      }
-    },
-    [onDragTouchMove, dragState, currentActivities, reorderActivities, cancelLongPress],
-  )
-
-  // Stable refs for touch handlers (same pattern as pointer handlers)
-  const onDragTouchMoveRef = useRef(onDragTouchMove)
-  const onDragTouchEndRef = useRef(onDragTouchEnd)
-  onDragTouchMoveRef.current = onDragTouchMove
-  onDragTouchEndRef.current = onDragTouchEnd
-  const stableDragTouchMove = useCallback((e: TouchEvent) => onDragTouchMoveRef.current(e), [])
-  const stableDragTouchEnd = useCallback((e: TouchEvent) => onDragTouchEndRef.current(e), [])
-
+  // --- Drag: uses pointer events. Works because selected block's drag handle
+  // has touch-action:none, so the browser won't steal the gesture for scrolling.
   const startDrag = useCallback(
     (activityId: string, e: React.PointerEvent) => {
       e.stopPropagation()
+      e.preventDefault()
       const activity = currentActivities.find((a) => a.id === activityId)
       if (!activity || !timelineRef.current) return
+      saveSnapshot()
 
       const l = layout.get(activityId)
       if (!l) return
@@ -724,66 +582,29 @@ export default function TimelineScreen() {
       const scrollTop = timelineRef.current.scrollTop
       const relY = e.clientY - rect.top + scrollTop
       const initialOffsetInBlock = relY - l.top
-      const startClientY = e.clientY
 
-      dragActiveRef.current = false
-      dragDataRef.current = {
+      gestureCommittedRef.current = false
+      gestureRef.current = {
+        type: "drag",
         activityId,
+        startY: relY,
         initialOffsetInBlock,
         startTop: l.top,
         startHeight: l.height,
+        pointerId: e.pointerId,
       }
-      gestureCommittedRef.current = false
 
-      // Attach touch listeners to document with { passive: false } so we can
-      // call preventDefault on touchmove once the long press fires
-      document.addEventListener("touchmove", stableDragTouchMove, { passive: false })
-      document.addEventListener("touchend", stableDragTouchEnd)
-      document.addEventListener("touchcancel", stableDragTouchEnd)
+      setDragState({
+        activityId,
+        ghostTop: l.top,
+        ghostHeight: l.height,
+        dropTargetId: null,
+      })
 
-      // Start long-press timer
-      cancelLongPress()
-      longPressTimerRef.current = setTimeout(() => {
-        longPressTimerRef.current = null
-        dragActiveRef.current = true
-        saveSnapshot()
-
-        setDragState({
-          activityId,
-          ghostTop: l.top,
-          ghostHeight: l.height,
-          dropTargetId: null,
-        })
-      }, LONG_PRESS_MS)
-
-      // Cancel long press on early vertical movement (user is scrolling)
-      const onEarlyMove = (ev: PointerEvent) => {
-        if (Math.abs(ev.clientY - startClientY) > GESTURE_THRESHOLD) {
-          cancelLongPress()
-          // Also remove touch listeners since drag won't activate
-          document.removeEventListener("touchmove", stableDragTouchMove)
-          document.removeEventListener("touchend", stableDragTouchEnd)
-          document.removeEventListener("touchcancel", stableDragTouchEnd)
-          dragDataRef.current = null
-          document.removeEventListener("pointermove", onEarlyMove)
-          document.removeEventListener("pointerup", onEarlyUp)
-        }
-      }
-      const onEarlyUp = () => {
-        cancelLongPress()
-        if (!dragActiveRef.current) {
-          document.removeEventListener("touchmove", stableDragTouchMove)
-          document.removeEventListener("touchend", stableDragTouchEnd)
-          document.removeEventListener("touchcancel", stableDragTouchEnd)
-          dragDataRef.current = null
-        }
-        document.removeEventListener("pointermove", onEarlyMove)
-        document.removeEventListener("pointerup", onEarlyUp)
-      }
-      document.addEventListener("pointermove", onEarlyMove)
-      document.addEventListener("pointerup", onEarlyUp)
+      document.addEventListener("pointermove", stableMove)
+      document.addEventListener("pointerup", stableUp)
     },
-    [currentActivities, layout, saveSnapshot, cancelLongPress, stableDragTouchMove, stableDragTouchEnd],
+    [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
 
   const startResize = useCallback(
@@ -819,36 +640,6 @@ export default function TimelineScreen() {
     },
     [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
-
-  // Block horizontal swipe on entire page (Safari back/forward navigation)
-  useEffect(() => {
-    let startX = 0
-    let startY = 0
-    let decided = false
-    const onTouchStart = (e: TouchEvent) => {
-      startX = e.touches[0].clientX
-      startY = e.touches[0].clientY
-      decided = false
-    }
-    const onTouchMove = (e: TouchEvent) => {
-      if (decided) return
-      const dx = Math.abs(e.touches[0].clientX - startX)
-      const dy = Math.abs(e.touches[0].clientY - startY)
-      if (dx > 6 || dy > 6) {
-        decided = true
-        // If horizontal movement is dominant, block it
-        if (dx > dy) {
-          e.preventDefault()
-        }
-      }
-    }
-    document.addEventListener("touchstart", onTouchStart, { passive: true })
-    document.addEventListener("touchmove", onTouchMove, { passive: false })
-    return () => {
-      document.removeEventListener("touchstart", onTouchStart)
-      document.removeEventListener("touchmove", onTouchMove)
-    }
-  }, [])
 
   // Auto-scroll to current time ONCE on initial mount
   const hasScrolledRef = useRef(false)
