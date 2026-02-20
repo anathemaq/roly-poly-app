@@ -741,7 +741,7 @@ export default function TimelineScreen() {
   // --- Empty state ---
   if (currentActivities.length === 0) {
     return (
-      <div className="h-screen bg-background flex items-center justify-center p-6">
+      <div className="fixed inset-0 bg-background flex items-center justify-center p-6 z-10">
         <Card className="p-8 text-center space-y-4 max-w-md">
           <Calendar className="h-12 w-12 mx-auto text-muted-foreground" />
           <h2 className="text-xl font-semibold text-foreground">День не начат</h2>
@@ -765,18 +765,18 @@ export default function TimelineScreen() {
     : null
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-background flex flex-col z-10">
       {/* Header */}
       <header
-        className="px-3 pb-3 flex justify-between items-center border-b border-border"
+        className="px-3 pb-3 flex justify-between items-center border-b border-border flex-shrink-0"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
         <h1 className="text-base font-semibold text-foreground">Таймлайн</h1>
         <ThemeToggle />
       </header>
 
-      {/* Timeline */}
-      <main className="flex-1 overflow-y-auto" ref={timelineRef}>
+      {/* Timeline -- single scroll container */}
+      <main className="flex-1 overflow-y-auto overscroll-contain" ref={timelineRef}>
         <div className="flex">
           <TimeScale height={computedHeight} totalHours={totalHours} />
 
