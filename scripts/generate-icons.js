@@ -1,17 +1,16 @@
 import sharp from 'sharp';
-import path from 'path';
 
-const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
-const inputPath = path.resolve('public/icons/logo-512.png');
-const outputDir = path.resolve('public/icons');
+const sizes = [192, 512];
+const imageUrl = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/----------------------------090218--background-----2X5ABpUCjDRD3y9QMemyDeDrOVVdSD.png';
+
+const response = await fetch(imageUrl);
+const buffer = Buffer.from(await response.arrayBuffer());
 
 for (const size of sizes) {
-  const outputPath = path.join(outputDir, `icon-${size}x${size}.png`);
-  await sharp(inputPath)
+  const resized = await sharp(buffer)
     .resize(size, size, { fit: 'cover' })
     .png()
-    .toFile(outputPath);
-  console.log(`Generated ${size}x${size}`);
+    .toBuffer();
+  console.log(`ICON_${size}:${resized.toString('base64')}`);
 }
 
-console.log('All icons generated!');
