@@ -89,8 +89,9 @@ interface ActivityBlockProps {
   top: number
   height: number
   isSelected: boolean
-  isDragTarget: boolean // visual indicator for drop target
+  isDragTarget: boolean
   onSelect: (id: string) => void
+  onEdit: (id: string) => void
   onDragStart: (id: string, e: React.PointerEvent) => void
   onResizeStart: (id: string, edge: "top" | "bottom", e: React.PointerEvent) => void
 }
@@ -104,9 +105,10 @@ const ActivityBlock = memo(function ActivityBlock({
   isResizing,
   isDragging,
   onSelect,
+  onEdit,
   onDragStart,
   onResizeStart,
-}: ActivityBlockProps & { isResizing?: boolean; isDragging?: boolean }) {
+}: ActivityBlockProps & { isResizing?: boolean; isDragging?: boolean; onEdit: (id: string) => void }) {
   return (
     <div
       className="absolute left-1 right-1"
@@ -163,14 +165,12 @@ const ActivityBlock = memo(function ActivityBlock({
           "h-full relative overflow-hidden select-none p-0 gap-0",
           isSelected && "ring-2 ring-primary shadow-lg",
         )}
-        onClick={() => onSelect(activity.id)}
       >
-        <div className="px-2 h-full flex flex-col justify-center overflow-hidden">
+        {/* Content area */}
+        <div className="px-2 pr-10 h-full flex flex-col justify-center overflow-hidden">
           {height < 18 ? (
-            /* Ultra-tiny (<~10min): colored bar only */
             <div className="w-full h-1 bg-primary/50 rounded-full" />
           ) : height < 32 ? (
-            /* Tiny (10-18min): single line -- name + duration */
             <div className="flex items-center gap-1">
               <span className="text-[10px] font-medium text-foreground truncate flex-1 leading-none">
                 {activity.name}
@@ -180,7 +180,6 @@ const ActivityBlock = memo(function ActivityBlock({
               </span>
             </div>
           ) : height < 48 ? (
-            /* Short (20-28min): single line slightly bigger */
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-medium text-foreground truncate flex-1 leading-none">
                 {activity.name}
@@ -190,7 +189,6 @@ const ActivityBlock = memo(function ActivityBlock({
               </span>
             </div>
           ) : height < 65 ? (
-            /* Medium (30-38min): name on top, time + duration below */
             <>
               <span className="text-[11px] font-medium text-foreground truncate leading-tight">
                 {activity.name}
@@ -200,7 +198,6 @@ const ActivityBlock = memo(function ActivityBlock({
               </span>
             </>
           ) : (
-            /* Full (40min+): name + time + duration comfortably */
             <>
               <span className="text-xs font-medium text-foreground truncate leading-snug">
                 {activity.name}
@@ -217,9 +214,18 @@ const ActivityBlock = memo(function ActivityBlock({
           )}
         </div>
 
-        {/* Drag handle -- center area, does NOT preventDefault to allow scroll */}
+        {/* Right strip: tap to open edit popup */}
         <div
-          className="absolute inset-x-0 top-0 bottom-0 cursor-grab active:cursor-grabbing z-10"
+          className="absolute right-0 top-0 bottom-0 w-10 flex items-center justify-center z-20 border-l border-border/30"
+          onClick={(e) => { e.stopPropagation(); onEdit(activity.id) }}
+        >
+          <div className="w-1 h-4 rounded-full bg-muted-foreground/40" />
+        </div>
+
+        {/* Main area: tap to select (show resize handles), long-press to drag */}
+        <div
+          className="absolute left-0 top-0 bottom-0 right-10 z-10"
+          onClick={(e) => { e.stopPropagation(); onSelect(activity.id) }}
           onPointerDown={(e) => onDragStart(activity.id, e)}
         />
       </Card>
@@ -468,7 +474,7 @@ export default function TimelineScreen() {
   const GESTURE_THRESHOLD = 10 // px -- prevents accidental resize on scroll
   // Long press timer for drag
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const LONG_PRESS_MS = 250
+  const LONG_PRESS_MS = 400
 
   // Find the drop target: which activity would the dragged block go before?
   const findDropTarget = useCallback(
@@ -592,40 +598,43 @@ export default function TimelineScreen() {
       document.removeEventListener("pointerup", onGesturePointerUp)
 
       if (g?.type === "drag" && dragState) {
-        // Perform the reorder
-        const { activityId, dropTargetId } = dragState
-        setDragState(null)
+        // Only reorder if the finger actually moved (committed gesture)
+        if (gestureCommittedRef.current) {
+          const { activityId, dropTargetId } = dragState
+          setDragState(null)
 
-        const draggedIdx = currentActivities.findIndex((a) => a.id === activityId)
-        if (draggedIdx === -1) return
+          const draggedIdx = currentActivities.findIndex((a) => a.id === activityId)
+          if (draggedIdx === -1) return
 
-        const dragged = currentActivities[draggedIdx]
-        const without = currentActivities.filter((a) => a.id !== activityId)
+          const dragged = currentActivities[draggedIdx]
+          const without = currentActivities.filter((a) => a.id !== activityId)
 
-        let insertIdx: number
-        if (dropTargetId === null) {
-          // Insert at end
-          insertIdx = without.length
+          let insertIdx: number
+          if (dropTargetId === null) {
+            insertIdx = without.length
+          } else {
+            insertIdx = without.findIndex((a) => a.id === dropTargetId)
+            if (insertIdx === -1) insertIdx = without.length
+          }
+
+          const reordered = [...without.slice(0, insertIdx), dragged, ...without.slice(insertIdx)]
+
+          const result: Activity[] = []
+          let nextStart = reordered[0]?.startTime || new Date()
+
+          for (let i = 0; i < reordered.length; i++) {
+            const a = reordered[i]
+            const startTime = i === 0 ? nextStart : new Date(nextStart)
+            const endTime = new Date(startTime.getTime() + a.duration * 60000)
+            result.push({ ...a, startTime, endTime })
+            nextStart = endTime
+          }
+
+          reorderActivities(result)
         } else {
-          insertIdx = without.findIndex((a) => a.id === dropTargetId)
-          if (insertIdx === -1) insertIdx = without.length
+          // Finger didn't move -- cancel the drag, don't reorder
+          setDragState(null)
         }
-
-        const reordered = [...without.slice(0, insertIdx), dragged, ...without.slice(insertIdx)]
-
-        // Recalculate times: first activity keeps its start, rest cascade
-        const result: Activity[] = []
-        let nextStart = reordered[0]?.startTime || new Date()
-
-        for (let i = 0; i < reordered.length; i++) {
-          const a = reordered[i]
-          const startTime = i === 0 ? nextStart : new Date(nextStart)
-          const endTime = new Date(startTime.getTime() + a.duration * 60000)
-          result.push({ ...a, startTime, endTime })
-          nextStart = endTime
-        }
-
-        reorderActivities(result)
       } else {
         setDragState(null)
       }
@@ -747,6 +756,32 @@ export default function TimelineScreen() {
     [currentActivities, layout, saveSnapshot, stableMove, stableUp],
   )
 
+  // Block horizontal swipe (Safari back/forward navigation)
+  useEffect(() => {
+    const el = timelineRef.current
+    if (!el) return
+    let startX = 0
+    let startY = 0
+    const onTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      const dx = Math.abs(e.touches[0].clientX - startX)
+      const dy = Math.abs(e.touches[0].clientY - startY)
+      // If horizontal movement is dominant, block it (prevents Safari back-swipe)
+      if (dx > 8 && dx > dy) {
+        e.preventDefault()
+      }
+    }
+    el.addEventListener("touchstart", onTouchStart, { passive: true })
+    el.addEventListener("touchmove", onTouchMove, { passive: false })
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart)
+      el.removeEventListener("touchmove", onTouchMove)
+    }
+  }, [])
+
   // Auto-scroll to current time ONCE on initial mount
   const hasScrolledRef = useRef(false)
   useEffect(() => {
@@ -764,14 +799,27 @@ export default function TimelineScreen() {
     })
   }, [])
 
+  // Tap on main area: toggle selection (shows resize handles)
   const handleSelect = useCallback(
     (id: string) => {
-      // Suppress popup if a gesture (resize/drag) just ended
       if (gestureJustEndedRef.current) {
         gestureJustEndedRef.current = false
         return
       }
       setSelectedActivity((prev) => (prev === id ? null : id))
+    },
+    [],
+  )
+
+  // Tap on right strip: open edit popup
+  const [editingActivity, setEditingActivity] = useState<string | null>(null)
+  const handleEdit = useCallback(
+    (id: string) => {
+      if (gestureJustEndedRef.current) {
+        gestureJustEndedRef.current = false
+        return
+      }
+      setEditingActivity(id)
     },
     [],
   )
@@ -794,8 +842,8 @@ export default function TimelineScreen() {
     )
   }
 
-  const selectedActivityData = selectedActivity
-    ? currentActivities.find((a) => a.id === selectedActivity)
+  const editingActivityData = editingActivity
+    ? currentActivities.find((a) => a.id === editingActivity)
     : null
 
   const draggedActivity = dragState
@@ -841,6 +889,7 @@ export default function TimelineScreen() {
                   isResizing={resizingId === activity.id}
                   isDragging={dragState?.activityId === activity.id}
                   onSelect={handleSelect}
+                  onEdit={handleEdit}
                   onDragStart={startDrag}
                   onResizeStart={startResize}
                 />
@@ -872,11 +921,11 @@ export default function TimelineScreen() {
         </button>
       )}
 
-      {/* Activity Popup */}
-      {selectedActivityData && (
+      {/* Activity Edit Popup */}
+      {editingActivityData && (
         <ActivityPopup
-          activity={selectedActivityData}
-          onClose={() => setSelectedActivity(null)}
+          activity={editingActivityData}
+          onClose={() => setEditingActivity(null)}
           onUpdate={updateActivity}
         />
       )}
