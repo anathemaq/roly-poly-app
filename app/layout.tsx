@@ -32,10 +32,12 @@ export default function RootLayout({
     <html lang="ru">
         <head>
           <link rel="manifest" href="/manifest.json" />
-          <meta name="theme-color" content="#c7cbcb" />
+          <meta name="theme-color" content="#090218" media="(prefers-color-scheme: dark)" />
+          <meta name="theme-color" content="#c7cbcb" media="(prefers-color-scheme: light)" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-          <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
+          <link rel="apple-touch-icon" href="/icons/logo-512.png" />
+          <link rel="icon" type="image/png" href="/icons/logo-512.png" />
         </head>
         <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <Suspense fallback={<div>Loading...</div>}>
