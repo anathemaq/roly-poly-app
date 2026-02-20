@@ -136,23 +136,27 @@ const ActivityBlock = memo(function ActivityBlock({
         </div>
       )}
 
-      {/* Bottom resize handle -- large touch target, OUTSIDE the card */}
-      <div
-        className="absolute -bottom-4 left-0 right-0 h-10 cursor-ns-resize flex items-center justify-center touch-none"
-        style={{ zIndex: 35 }}
-        onPointerDown={(e) => onResizeStart(activity.id, "bottom", e)}
-      >
-        <div className="w-12 h-1 rounded-full bg-muted-foreground/30" />
-      </div>
+      {/* Bottom resize handle -- visible only when selected */}
+      {isSelected && (
+        <div
+          className="absolute -bottom-3 left-0 right-0 h-6 cursor-ns-resize flex items-center justify-center touch-none"
+          style={{ zIndex: 35 }}
+          onPointerDown={(e) => onResizeStart(activity.id, "bottom", e)}
+        >
+          <div className="w-10 h-1 rounded-full bg-primary/50" />
+        </div>
+      )}
 
-      {/* Top resize handle -- large touch target, OUTSIDE the card */}
-      <div
-        className="absolute -top-4 left-0 right-0 h-10 cursor-ns-resize flex items-center justify-center touch-none"
-        style={{ zIndex: 35 }}
-        onPointerDown={(e) => onResizeStart(activity.id, "top", e)}
-      >
-        <div className="w-12 h-1 rounded-full bg-muted-foreground/30" />
-      </div>
+      {/* Top resize handle -- visible only when selected */}
+      {isSelected && (
+        <div
+          className="absolute -top-3 left-0 right-0 h-6 cursor-ns-resize flex items-center justify-center touch-none"
+          style={{ zIndex: 35 }}
+          onPointerDown={(e) => onResizeStart(activity.id, "top", e)}
+        >
+          <div className="w-10 h-1 rounded-full bg-primary/50" />
+        </div>
+      )}
 
       <Card
         className={cn(
@@ -213,9 +217,9 @@ const ActivityBlock = memo(function ActivityBlock({
           )}
         </div>
 
-        {/* Drag handle -- center area */}
+        {/* Drag handle -- center area, does NOT preventDefault to allow scroll */}
         <div
-          className="absolute inset-x-0 top-2 bottom-2 cursor-grab active:cursor-grabbing z-10"
+          className="absolute inset-x-0 top-0 bottom-0 cursor-grab active:cursor-grabbing z-10"
           onPointerDown={(e) => onDragStart(activity.id, e)}
         />
       </Card>
@@ -461,7 +465,10 @@ export default function TimelineScreen() {
   const gestureJustEndedRef = useRef(false)
   // Movement threshold: only commit to resize after moving > threshold px
   const gestureCommittedRef = useRef(false)
-  const GESTURE_THRESHOLD = 6 // px -- prevents accidental resize on scroll
+  const GESTURE_THRESHOLD = 10 // px -- prevents accidental resize on scroll
+  // Long press timer for drag
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const LONG_PRESS_MS = 250
 
   // Find the drop target: which activity would the dragged block go before?
   const findDropTarget = useCallback(
@@ -635,13 +642,20 @@ export default function TimelineScreen() {
   const stableMove = useCallback((e: PointerEvent) => onMoveRef.current(e), [])
   const stableUp = useCallback((e: PointerEvent) => onUpRef.current(e), [])
 
+  // Cancel pending long press (e.g. if finger moves too much before timer fires)
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }, [])
+
   const startDrag = useCallback(
     (activityId: string, e: React.PointerEvent) => {
       e.stopPropagation()
-      e.preventDefault()
+      // Do NOT call e.preventDefault() here -- allow scroll to work normally
       const activity = currentActivities.find((a) => a.id === activityId)
       if (!activity || !timelineRef.current) return
-      saveSnapshot()
 
       const l = layout.get(activityId)
       if (!l) return
@@ -650,29 +664,53 @@ export default function TimelineScreen() {
       const scrollTop = timelineRef.current.scrollTop
       const relY = e.clientY - rect.top + scrollTop
       const initialOffsetInBlock = relY - l.top
+      const startClientY = e.clientY
 
-      gestureCommittedRef.current = false
-      gestureRef.current = {
-        type: "drag",
-        activityId,
-        startY: relY,
-        initialOffsetInBlock,
-        startTop: l.top,
-        startHeight: l.height,
-        pointerId: e.pointerId,
+      // Start long press timer -- only activate drag after hold
+      cancelLongPress()
+      longPressTimerRef.current = setTimeout(() => {
+        longPressTimerRef.current = null
+        saveSnapshot()
+
+        gestureCommittedRef.current = false
+        gestureRef.current = {
+          type: "drag",
+          activityId,
+          startY: relY,
+          initialOffsetInBlock,
+          startTop: l.top,
+          startHeight: l.height,
+          pointerId: e.pointerId,
+        }
+
+        setDragState({
+          activityId,
+          ghostTop: l.top,
+          ghostHeight: l.height,
+          dropTargetId: null,
+        })
+
+        document.addEventListener("pointermove", stableMove)
+        document.addEventListener("pointerup", stableUp)
+      }, LONG_PRESS_MS)
+
+      // If finger moves too much before timer fires, cancel the long press (user is scrolling)
+      const onEarlyMove = (ev: PointerEvent) => {
+        if (Math.abs(ev.clientY - startClientY) > GESTURE_THRESHOLD) {
+          cancelLongPress()
+          document.removeEventListener("pointermove", onEarlyMove)
+          document.removeEventListener("pointerup", onEarlyUp)
+        }
       }
-
-      setDragState({
-        activityId,
-        ghostTop: l.top,
-        ghostHeight: l.height,
-        dropTargetId: null,
-      })
-
-      document.addEventListener("pointermove", stableMove)
-      document.addEventListener("pointerup", stableUp)
+      const onEarlyUp = () => {
+        cancelLongPress()
+        document.removeEventListener("pointermove", onEarlyMove)
+        document.removeEventListener("pointerup", onEarlyUp)
+      }
+      document.addEventListener("pointermove", onEarlyMove)
+      document.addEventListener("pointerup", onEarlyUp)
     },
-    [currentActivities, layout, saveSnapshot, stableMove, stableUp],
+    [currentActivities, layout, saveSnapshot, stableMove, stableUp, cancelLongPress],
   )
 
   const startResize = useCallback(
@@ -765,7 +803,7 @@ export default function TimelineScreen() {
     : null
 
   return (
-    <div className="fixed inset-0 bg-background flex flex-col z-10">
+    <div className="fixed inset-0 bg-background flex flex-col z-10" style={{ overscrollBehavior: 'none' }}>
       {/* Header */}
       <header
         className="px-3 pb-3 flex justify-between items-center border-b border-border flex-shrink-0"
@@ -775,8 +813,12 @@ export default function TimelineScreen() {
         <ThemeToggle />
       </header>
 
-      {/* Timeline -- single scroll container */}
-      <main className="flex-1 overflow-y-auto overscroll-contain" ref={timelineRef}>
+      {/* Timeline -- single scroll container, touch-action: pan-y blocks horizontal swipe-back */}
+      <main
+        className="flex-1 overflow-y-auto overscroll-contain"
+        style={{ touchAction: 'pan-y', overscrollBehaviorX: 'none' }}
+        ref={timelineRef}
+      >
         <div className="flex">
           <TimeScale height={computedHeight} totalHours={totalHours} />
 
@@ -815,6 +857,8 @@ export default function TimelineScreen() {
             )}
           </div>
         </div>
+        {/* Spacer so last block is not hidden behind nav bar */}
+        <div className="flex-shrink-0" style={{ height: 'calc(80px + env(safe-area-inset-bottom, 0px))' }} />
       </main>
 
       {/* Floating Undo */}
