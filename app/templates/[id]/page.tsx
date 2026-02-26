@@ -9,9 +9,20 @@ import type { DayTemplate } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { ArrowLeft, Plus, Trash2, GripVertical, Save } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, GripVertical, Save, Share2, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTouchDrag } from "@/hooks/use-touch-drag"
+import { useCommunityTemplates } from "@/lib/use-community-templates"
+import { useToast } from "@/hooks/use-toast"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export default function TemplateDetailPage() {
   const params = useParams()
@@ -21,6 +32,11 @@ export default function TemplateDetailPage() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [durationInputs, setDurationInputs] = useState<Record<string, string>>({})
   const itemRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [publishDescription, setPublishDescription] = useState("")
+  const [isPublishing, setIsPublishing] = useState(false)
+  const { publishTemplate } = useCommunityTemplates()
+  const { toast } = useToast()
 
   const touchDrag = useTouchDrag({
     onReorder: (fromIndex, toIndex) => {
@@ -82,6 +98,37 @@ export default function TemplateDetailPage() {
       updateTemplate(template.id, template)
     }
     router.push("/templates")
+  }
+
+  const handlePublish = async () => {
+    if (!template) return
+    
+    setIsPublishing(true)
+    const result = await publishTemplate(
+      template.name,
+      publishDescription,
+      template.activities.map((a) => ({
+        name: a.name,
+        duration: a.duration,
+        color: a.color || "#9333ea",
+      }))
+    )
+    setIsPublishing(false)
+    
+    if (result) {
+      setShowPublishDialog(false)
+      setPublishDescription("")
+      toast({
+        title: "Шаблон опубликован",
+        description: "Ваш шаблон теперь доступен в сообществе",
+      })
+    } else {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось опубликовать шаблон",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleAddActivity = () => {
@@ -166,10 +213,22 @@ export default function TemplateDetailPage() {
         <h1 className="text-lg font-semibold text-foreground">
           {params.id === "new" ? "Новый шаблон" : "Редактировать"}
         </h1>
-        <Button onClick={handleSave} size="sm" className="gap-2">
-          <Save className="h-4 w-4" />
-          Сохранить
-        </Button>
+        <div className="flex items-center gap-2">
+          {params.id !== "new" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPublishDialog(true)}
+              className="gap-2"
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
+          )}
+          <Button onClick={handleSave} size="sm" className="gap-2">
+            <Save className="h-4 w-4" />
+            Сохранить
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -267,6 +326,51 @@ export default function TemplateDetailPage() {
           </Button>
         </div>
       </main>
+
+      {/* Publish Dialog */}
+      <Dialog open={showPublishDialog} onOpenChange={setShowPublishDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Опубликовать шаблон</DialogTitle>
+            <DialogDescription>
+              Поделитесь своим шаблоном с сообществом. Другие пользователи смогут скачать его и использовать.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Название</label>
+              <Input value={template?.name || ""} disabled className="bg-muted" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Описание (необязательно)</label>
+              <Textarea
+                value={publishDescription}
+                onChange={(e) => setPublishDescription(e.target.value)}
+                placeholder="Опишите ваш шаблон..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPublishDialog(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handlePublish} disabled={isPublishing}>
+              {isPublishing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Публикация...
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Опубликовать
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
