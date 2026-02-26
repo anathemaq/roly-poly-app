@@ -26,13 +26,14 @@ export function UserHeader() {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
-
-  // Don't render on auth pages
-  if (pathname.startsWith('/auth')) {
-    return null
-  }
+  const isAuthPage = pathname.startsWith('/auth')
 
   useEffect(() => {
+    // Don't fetch on auth pages
+    if (isAuthPage) {
+      setIsLoading(false)
+      return
+    }
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
@@ -68,7 +69,12 @@ export function UserHeader() {
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase])
+  }, [supabase, isAuthPage])
+
+  // Don't render on auth pages
+  if (isAuthPage) {
+    return null
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
