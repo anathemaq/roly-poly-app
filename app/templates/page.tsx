@@ -21,8 +21,10 @@ export default function TemplatesScreen() {
   const {
     templates: communityTemplates,
     userLikes,
+    userFavorites,
     isLoading: isCommunityLoading,
     toggleLike,
+    toggleFavorite,
     downloadTemplate,
     search,
     setSearch,
@@ -51,6 +53,10 @@ export default function TemplatesScreen() {
     setLikingTemplate(templateId)
     await toggleLike(templateId)
     setLikingTemplate(null)
+  }
+
+  const handleFavorite = async (templateId: string) => {
+    await toggleFavorite(templateId)
   }
 
   const handleDownload = async (templateId: string) => {
@@ -251,7 +257,9 @@ export default function TemplatesScreen() {
                 key={template.id}
                 template={template}
                 isLiked={userLikes.includes(template.id)}
+                isFavorited={userFavorites.includes(template.id)}
                 onLike={handleLike}
+                onFavorite={handleFavorite}
                 onDownload={handleDownload}
                 isLikeLoading={likingTemplate === template.id}
               />

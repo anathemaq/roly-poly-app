@@ -4,7 +4,13 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Download, User } from "lucide-react"
+import { Heart, Download, User, Bookmark, Eye } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 interface CommunityTemplateCardProps {
@@ -15,12 +21,15 @@ interface CommunityTemplateCardProps {
     activities: Array<{ name: string; duration: number; color: string }>
     likes_count: number
     downloads_count: number
+    user_id: string
     author: {
       nickname: string
     }
   }
   isLiked: boolean
+  isFavorited: boolean
   onLike: (templateId: string) => void
+  onFavorite: (templateId: string) => void
   onDownload: (templateId: string) => void
   isLikeLoading?: boolean
 }
@@ -28,12 +37,15 @@ interface CommunityTemplateCardProps {
 export function CommunityTemplateCard({
   template,
   isLiked,
+  isFavorited,
   onLike,
+  onFavorite,
   onDownload,
   isLikeLoading,
 }: CommunityTemplateCardProps) {
   const router = useRouter()
   const [isDownloading, setIsDownloading] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
 
   const totalDuration = template.activities.reduce((sum, a) => sum + a.duration, 0)
   const hours = Math.floor(totalDuration / 60)
@@ -70,10 +82,16 @@ export function CommunityTemplateCard({
         </div>
 
         {/* Author */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <button
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+          onClick={(e) => {
+            e.stopPropagation()
+            router.push(`/author/${template.user_id}`)
+          }}
+        >
           <User className="h-4 w-4" />
-          <span>{template.author.nickname}</span>
-        </div>
+          <span className="underline-offset-2 hover:underline">{template.author.nickname}</span>
+        </button>
 
         {/* Stats */}
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -124,6 +142,31 @@ export function CommunityTemplateCard({
               <Download className="h-4 w-4" />
               <span>{template.downloads_count}</span>
             </div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onFavorite(template.id)
+              }}
+              className="flex items-center gap-1.5 text-sm transition-colors"
+            >
+              <Bookmark
+                className={cn(
+                  "h-5 w-5 transition-colors",
+                  isFavorited ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
+                )}
+              />
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowPreview(true)
+              }}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Eye className="h-5 w-5" />
+            </button>
           </div>
 
           <Button
@@ -139,6 +182,52 @@ export function CommunityTemplateCard({
           </Button>
         </div>
       </div>
+
+      {/* Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{template.name}</DialogTitle>
+          </DialogHeader>
+          {template.description && (
+            <p className="text-sm text-muted-foreground">{template.description}</p>
+          )}
+          <div className="space-y-2 mt-4">
+            <h4 className="font-medium text-sm">Активности ({template.activities.length})</h4>
+            <div className="space-y-2">
+              {template.activities.map((activity, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-3 p-2 rounded-lg bg-muted/50"
+                >
+                  <div
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: activity.color }}
+                  />
+                  <span className="flex-1 text-sm">{activity.name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {activity.duration >= 60
+                      ? `${Math.floor(activity.duration / 60)}ч ${activity.duration % 60}м`
+                      : `${activity.duration}м`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Button
+              className="flex-1"
+              onClick={() => {
+                handleDownload()
+                setShowPreview(false)
+              }}
+              disabled={isDownloading}
+            >
+              {isDownloading ? "Загрузка..." : "Скачать шаблон"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
