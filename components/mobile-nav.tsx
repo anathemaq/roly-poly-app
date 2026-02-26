@@ -17,10 +17,19 @@ export function MobileNav() {
   const router = useRouter()
   const [, startTransition] = useTransition()
 
+  // Don't show on auth pages
+  const isAuthPage = pathname.startsWith('/auth')
+
   // Prefetch all routes on mount for instant navigation
   useEffect(() => {
-    navItems.forEach((item) => router.prefetch(item.href))
-  }, [router])
+    if (!isAuthPage) {
+      navItems.forEach((item) => router.prefetch(item.href))
+    }
+  }, [router, isAuthPage])
+
+  if (isAuthPage) {
+    return null
+  }
 
   const navigate = useCallback((href: string) => {
     startTransition(() => {
