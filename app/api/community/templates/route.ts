@@ -32,10 +32,7 @@ export async function GET(request: NextRequest) {
 
   const { data: templates, error } = await query
 
-  console.log("[v0] GET /api/community/templates - templates:", templates?.length, "error:", error?.message)
-
   if (error) {
-    console.log("[v0] GET /api/community/templates error details:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
@@ -78,8 +75,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Name and activities are required' }, { status: 400 })
   }
 
-  console.log("[v0] POST /api/community/templates - user:", user.id, "name:", name)
-
   const { data, error } = await supabase
     .from('shared_templates')
     .insert({
@@ -91,10 +86,7 @@ export async function POST(request: NextRequest) {
     .select()
     .single()
 
-  console.log("[v0] POST /api/community/templates - result:", data?.id, "error:", error?.message)
-
   if (error) {
-    console.log("[v0] POST error details:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

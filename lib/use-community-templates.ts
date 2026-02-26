@@ -108,7 +108,6 @@ export function useCommunityTemplates() {
     description: string,
     activities: Activity[]
   ) => {
-    console.log("[v0] publishTemplate called with:", { name, activitiesCount: activities.length })
     try {
       const res = await fetch("/api/community/templates", {
         method: "POST",
@@ -116,20 +115,15 @@ export function useCommunityTemplates() {
         body: JSON.stringify({ name, description, activities }),
       })
       
-      console.log("[v0] publishTemplate response status:", res.status)
-      
       if (!res.ok) {
-        const errorData = await res.json()
-        console.log("[v0] publishTemplate error:", errorData)
         throw new Error("Failed to publish template")
       }
 
       const data = await res.json()
-      console.log("[v0] publishTemplate success:", data)
       mutate()
       return data
     } catch (error) {
-      console.error("[v0] publishTemplate caught error:", error)
+      console.error("Failed to publish template:", error)
       return null
     }
   }, [mutate])

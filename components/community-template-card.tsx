@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Heart, Download, User } from "lucide-react"
@@ -31,6 +32,7 @@ export function CommunityTemplateCard({
   onDownload,
   isLikeLoading,
 }: CommunityTemplateCardProps) {
+  const router = useRouter()
   const [isDownloading, setIsDownloading] = useState(false)
 
   const totalDuration = template.activities.reduce((sum, a) => sum + a.duration, 0)
@@ -43,8 +45,15 @@ export function CommunityTemplateCard({
     setIsDownloading(false)
   }
 
+  const handleCardClick = () => {
+    router.push(`/community/${template.id}`)
+  }
+
   return (
-    <Card className="p-4">
+    <Card 
+      className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+      onClick={handleCardClick}
+    >
       <div className="flex flex-col gap-3">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
@@ -90,10 +99,13 @@ export function CommunityTemplateCard({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex items-center justify-between pt-2 border-t border-border" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => onLike(template.id)}
+              onClick={(e) => {
+                e.stopPropagation()
+                onLike(template.id)
+              }}
               disabled={isLikeLoading}
               className="flex items-center gap-1.5 text-sm transition-colors disabled:opacity-50"
             >
@@ -117,7 +129,10 @@ export function CommunityTemplateCard({
           <Button
             size="sm"
             variant="outline"
-            onClick={handleDownload}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDownload()
+            }}
             disabled={isDownloading}
           >
             {isDownloading ? "Загрузка..." : "Скачать"}

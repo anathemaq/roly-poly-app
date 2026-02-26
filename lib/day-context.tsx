@@ -555,8 +555,18 @@ export function DayProvider({ children }: { children: ReactNode }) {
     setPausedAt(null)
   }
 
-  const addTemplate = (template: DayTemplate) => {
-    setTemplates((prev) => [...prev, template])
+  const addTemplate = (template: Omit<DayTemplate, 'id'> | DayTemplate) => {
+    const newTemplate: DayTemplate = {
+      ...template,
+      id: 'id' in template && template.id ? template.id : `template-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      activities: template.activities.map((a, i) => ({
+        ...a,
+        id: a.id || `activity-${Date.now()}-${i}`,
+        order: a.order ?? i,
+        completed: false,
+      })),
+    }
+    setTemplates((prev) => [...prev, newTemplate])
   }
 
   const updateTemplate = (id: string, template: DayTemplate) => {
