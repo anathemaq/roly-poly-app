@@ -4,9 +4,19 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ArrowLeft, Heart, Download, User, Trash2, Loader2 } from "lucide-react"
+import { ArrowLeft, Heart, Download, User, Trash2, Loader2, Pencil, Bookmark } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { useCommunityTemplates } from "@/lib/use-community-templates"
+import { useCommunityTemplates, TEMPLATE_CATEGORIES } from "@/lib/use-community-templates"
 import { useDay } from "@/lib/day-context"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
@@ -20,6 +30,7 @@ interface CommunityTemplate {
   downloads_count: number
   user_id: string
   created_at: string
+  category: string
   author: {
     nickname: string
   }
@@ -30,7 +41,7 @@ export default function CommunityTemplatePage() {
   const router = useRouter()
   const { toast } = useToast()
   const { addTemplate } = useDay()
-  const { userLikes, toggleLike, downloadTemplate, refresh } = useCommunityTemplates()
+  const { userLikes, userFavorites, toggleLike, toggleFavorite, downloadTemplate, refresh } = useCommunityTemplates()
   
   const [template, setTemplate] = useState<CommunityTemplate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -38,8 +49,14 @@ export default function CommunityTemplatePage() {
   const [isDownloading, setIsDownloading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editName, setEditName] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editCategory, setEditCategory] = useState("other")
+  const [isSaving, setIsSaving] = useState(false)
 
   const isLiked = template ? userLikes.includes(template.id) : false
+  const isFavorited = template ? userFavorites.includes(template.id) : false
   const isOwner = template && currentUserId === template.user_id
 
   useEffect(() => {
@@ -104,6 +121,52 @@ export default function CommunityTemplatePage() {
     setIsDownloading(false)
   }
 
+  const handleFavorite = async () => {
+    if (!template) return
+    await toggleFavorite(template.id)
+  }
+
+  const openEditDialog = () => {
+    if (!template) return
+    setEditName(template.name)
+    setEditDescription(template.description || "")
+    setEditCategory(template.category || "other")
+    setShowEditDialog(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!template) return
+    setIsSaving(true)
+    try {
+      const res = await fetch(`/api/community/templates/${template.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName,
+          description: editDescription || null,
+          category: editCategory,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed to update")
+      
+      const updated = await res.json()
+      setTemplate(prev => prev ? { ...prev, ...updated } : null)
+      setShowEditDialog(false)
+      refresh()
+      toast({
+        title: "Шаблон обновлен",
+        description: "Изменения сохранены",
+      })
+    } catch {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сохранить изменения",
+        variant: "destructive",
+      })
+    }
+    setIsSaving(false)
+  }
+
   const handleDelete = async () => {
     if (!template || !isOwner) return
     if (!confirm("Вы уверены, что хотите удалить этот шаблон из сообщества?")) return
@@ -160,19 +223,28 @@ export default function CommunityTemplatePage() {
           {template.name}
         </h1>
         {isOwner && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="text-destructive hover:text-destructive"
-          >
-            {isDeleting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={openEditDialog}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="text-destructive hover:text-destructive"
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          </>
         )}
       </header>
 
@@ -185,7 +257,12 @@ export default function CommunityTemplatePage() {
         {/* Author */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <User className="h-4 w-4" />
-          <span>{template.author.nickname}</span>
+          <button
+            onClick={() => router.push(`/author/${template.user_id}`)}
+            className="hover:text-foreground underline-offset-2 hover:underline transition-colors"
+          >
+            {template.author.nickname}
+          </button>
           {isOwner && (
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
               Ваш шаблон
@@ -260,6 +337,18 @@ export default function CommunityTemplatePage() {
             <Download className="h-4 w-4" />
             <span>{template.downloads_count}</span>
           </div>
+
+          <button
+            onClick={handleFavorite}
+            className="flex items-center gap-2 text-sm transition-colors"
+          >
+            <Bookmark
+              className={cn(
+                "h-5 w-5 transition-colors",
+                isFavorited ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
+              )}
+            />
+          </button>
         </div>
       </main>
 
@@ -288,6 +377,64 @@ export default function CommunityTemplatePage() {
           </Button>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать шаблон</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Название</label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Название шаблона"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Категория</label>
+              <Select value={editCategory} onValueChange={setEditCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите категорию" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_CATEGORIES.filter(c => c.value !== 'all').map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Описание</label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Опишите ваш шаблон..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={isSaving || !editName.trim()}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Сохранение...
+                </>
+              ) : (
+                "Сохранить"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

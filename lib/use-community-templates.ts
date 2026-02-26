@@ -74,6 +74,11 @@ export function useCommunityTemplates() {
     fetcher
   )
 
+  const { data: userFavorites, mutate: mutateFavorites } = useSWR<string[]>(
+    "/api/community/favorites",
+    fetcher
+  )
+
   const toggleLike = useCallback(async (templateId: string) => {
     const isLiked = userLikes?.includes(templateId)
     
@@ -112,6 +117,33 @@ export function useCommunityTemplates() {
       mutateLikes()
     }
   }, [userLikes, templates, mutate, mutateLikes])
+
+  const toggleFavorite = useCallback(async (templateId: string) => {
+    const isFavorited = userFavorites?.includes(templateId)
+    
+    // Optimistic update
+    mutateFavorites(
+      isFavorited
+        ? userFavorites?.filter((id) => id !== templateId)
+        : [...(userFavorites || []), templateId],
+      false
+    )
+
+    try {
+      const res = await fetch(`/api/community/templates/${templateId}/favorite`, {
+        method: "POST",
+      })
+      
+      if (!res.ok) {
+        throw new Error("Failed to toggle favorite")
+      }
+
+      mutateFavorites()
+    } catch (error) {
+      // Revert on error
+      mutateFavorites()
+    }
+  }, [userFavorites, mutateFavorites])
 
   const downloadTemplate = useCallback(async (templateId: string) => {
     try {
@@ -164,9 +196,11 @@ export function useCommunityTemplates() {
   return {
     templates: templates || [],
     userLikes: userLikes || [],
+    userFavorites: userFavorites || [],
     isLoading,
     error,
     toggleLike,
+    toggleFavorite,
     downloadTemplate,
     publishTemplate,
     refresh: mutate,
