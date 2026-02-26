@@ -10,23 +10,10 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '50')
   const offset = parseInt(searchParams.get('offset') || '0')
 
+  // First get templates
   let query = supabase
     .from('shared_templates')
-    .select(`
-      id,
-      user_id,
-      name,
-      description,
-      activities,
-      likes_count,
-      downloads_count,
-      created_at,
-      updated_at,
-      author:profiles!shared_templates_user_id_fkey (
-        nickname,
-        avatar_url
-      )
-    `)
+    .select('*')
     .range(offset, offset + limit - 1)
 
   // Apply sorting
@@ -43,16 +30,35 @@ export async function GET(request: NextRequest) {
       break
   }
 
-  const { data, error } = await query
+  const { data: templates, error } = await query
 
-  console.log("[v0] GET /api/community/templates - data:", data?.length, "error:", error?.message)
+  console.log("[v0] GET /api/community/templates - templates:", templates?.length, "error:", error?.message)
 
   if (error) {
     console.log("[v0] GET /api/community/templates error details:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data || [])
+  if (!templates || templates.length === 0) {
+    return NextResponse.json([])
+  }
+
+  // Fetch author profiles
+  const userIds = [...new Set(templates.map(t => t.user_id))]
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, nickname, avatar_url')
+    .in('id', userIds)
+
+  const profilesMap = new Map(profiles?.map(p => [p.id, p]) || [])
+
+  // Combine templates with author info
+  const templatesWithAuthors = templates.map(t => ({
+    ...t,
+    author: profilesMap.get(t.user_id) || { nickname: 'Unknown', avatar_url: null }
+  }))
+
+  return NextResponse.json(templatesWithAuthors)
 }
 
 // POST: Create a new shared template
