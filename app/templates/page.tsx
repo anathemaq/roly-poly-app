@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 
+import { ThemeToggle } from "@/components/theme-toggle"
+import { AppMenu } from "@/components/app-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CommunityTemplateCard } from "@/components/community-template-card"
@@ -100,7 +102,10 @@ export default function TemplatesScreen() {
         className="px-3 pb-3 flex justify-between items-center border-b border-border"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        <h1 className="text-base font-semibold text-foreground">Шаблоны</h1>
+        <div className="flex items-center gap-2">
+          <AppMenu />
+          <h1 className="text-base font-semibold text-foreground">Шаблоны</h1>
+        </div>
         <ThemeToggle />
       </header>
 
