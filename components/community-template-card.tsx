@@ -86,6 +86,7 @@ export function CommunityTemplateCard({
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
           onClick={(e) => {
             e.stopPropagation()
+            console.log("[v0] Clicking author, user_id:", template.user_id, "template:", template)
             router.push(`/author/${template.user_id}`)
           }}
         >
