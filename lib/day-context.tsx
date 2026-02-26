@@ -556,6 +556,7 @@ export function DayProvider({ children }: { children: ReactNode }) {
   }
 
   const addTemplate = (template: Omit<DayTemplate, 'id'> | DayTemplate) => {
+    console.log("[v0] addTemplate input:", template)
     const newTemplate: DayTemplate = {
       ...template,
       id: 'id' in template && template.id ? template.id : `template-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -566,7 +567,13 @@ export function DayProvider({ children }: { children: ReactNode }) {
         completed: false,
       })),
     }
-    setTemplates((prev) => [...prev, newTemplate])
+    console.log("[v0] addTemplate newTemplate:", newTemplate)
+    setTemplates((prev) => {
+      console.log("[v0] setTemplates prev length:", prev.length)
+      const next = [...prev, newTemplate]
+      console.log("[v0] setTemplates next length:", next.length)
+      return next
+    })
   }
 
   const updateTemplate = (id: string, template: DayTemplate) => {

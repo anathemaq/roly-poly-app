@@ -46,17 +46,23 @@ export default function TemplatesScreen() {
   }
 
   const handleDownload = async (templateId: string) => {
+    console.log("[v0] handleDownload called with templateId:", templateId)
     const template = await downloadTemplate(templateId)
+    console.log("[v0] downloadTemplate returned:", template)
     if (template) {
+      console.log("[v0] Adding template to local:", { name: template.name, activities: template.activities })
       // Add to local templates
       addTemplate({
         name: template.name,
         activities: template.activities,
       })
+      console.log("[v0] addTemplate called, current templates count:", templates.length)
       toast({
         title: "Шаблон скачан",
         description: `"${template.name}" добавлен в ваши шаблоны`,
       })
+    } else {
+      console.log("[v0] template was null/undefined")
     }
   }
 
