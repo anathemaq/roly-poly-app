@@ -1,20 +1,44 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 
+// Available categories
+export const TEMPLATE_CATEGORIES = [
+  { value: 'productivity', label: 'Продуктивность' },
+  { value: 'sport', label: 'Спорт' },
+  { value: 'study', label: 'Учёба' },
+  { value: 'health', label: 'Здоровье' },
+  { value: 'work', label: 'Работа' },
+  { value: 'other', label: 'Другое' },
+] as const
+
 // GET: Fetch all shared templates with author info
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   
   const { searchParams } = new URL(request.url)
   const sortBy = searchParams.get('sort') || 'likes' // likes, newest, downloads
+  const category = searchParams.get('category') // filter by category
+  const search = searchParams.get('search') // search by name
   const limit = parseInt(searchParams.get('limit') || '50')
   const offset = parseInt(searchParams.get('offset') || '0')
 
-  // First get templates
+  // Build query
   let query = supabase
     .from('shared_templates')
     .select('*')
-    .range(offset, offset + limit - 1)
+
+  // Filter by category
+  if (category && category !== 'all') {
+    query = query.eq('category', category)
+  }
+
+  // Search by name (case-insensitive)
+  if (search && search.trim()) {
+    query = query.ilike('name', `%${search.trim()}%`)
+  }
+
+  // Apply pagination
+  query = query.range(offset, offset + limit - 1)
 
   // Apply sorting
   switch (sortBy) {
@@ -69,7 +93,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { name, description, activities } = body
+  const { name, description, activities, category } = body
 
   if (!name || !activities) {
     return NextResponse.json({ error: 'Name and activities are required' }, { status: 400 })
@@ -81,7 +105,8 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       name,
       description: description || null,
-      activities
+      activities,
+      category: category || 'other'
     })
     .select()
     .single()

@@ -4,13 +4,15 @@ import type React from "react"
 import { useState } from "react"
 
 import { useDay } from "@/lib/day-context"
-import { useCommunityTemplates } from "@/lib/use-community-templates"
+import { useCommunityTemplates, TEMPLATE_CATEGORIES, SORT_OPTIONS } from "@/lib/use-community-templates"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CommunityTemplateCard } from "@/components/community-template-card"
-import { Plus, Trash2, ChevronRight, Loader2, Users, FolderOpen } from "lucide-react"
+import { Plus, Trash2, ChevronRight, Loader2, Users, FolderOpen, Search, SlidersHorizontal } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 
@@ -22,6 +24,12 @@ export default function TemplatesScreen() {
     isLoading: isCommunityLoading,
     toggleLike,
     downloadTemplate,
+    search,
+    setSearch,
+    category,
+    setCategory,
+    sortBy,
+    setSortBy,
   } = useCommunityTemplates()
   const router = useRouter()
   const { toast } = useToast()
@@ -46,6 +54,21 @@ export default function TemplatesScreen() {
   }
 
   const handleDownload = async (templateId: string) => {
+    // Check for duplicate by name
+    const communityTemplate = communityTemplates.find(t => t.id === templateId)
+    if (communityTemplate) {
+      const isDuplicate = templates.some(t => 
+        t.name.toLowerCase() === communityTemplate.name.toLowerCase()
+      )
+      
+      if (isDuplicate) {
+        const confirmed = confirm(
+          `У вас уже есть шаблон "${communityTemplate.name}". Скачать ещё раз?`
+        )
+        if (!confirmed) return
+      }
+    }
+
     const template = await downloadTemplate(templateId)
     if (template) {
       addTemplate({
@@ -158,7 +181,52 @@ export default function TemplatesScreen() {
           </div>
         </>
       ) : (
-        <main className="flex-1 overflow-y-auto p-4 space-y-3">
+        <>
+          {/* Search and Filters */}
+          <div className="px-4 pt-4 space-y-3">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Поиск по названию..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            {/* Category and Sort */}
+            <div className="flex gap-2">
+              <Select value={category} onValueChange={(v) => setCategory(v as typeof category)}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Категория" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                <SelectTrigger className="w-[140px]">
+                  <SlidersHorizontal className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Сортировка" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <main className="flex-1 overflow-y-auto p-4 space-y-3">
           {isCommunityLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -166,9 +234,15 @@ export default function TemplatesScreen() {
           ) : communityTemplates.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Пока нет шаблонов от сообщества</p>
+              <p className="text-muted-foreground">
+                {search || category !== 'all' 
+                  ? "Ничего не найдено" 
+                  : "Пока нет шаблонов от сообщества"}
+              </p>
               <p className="text-sm text-muted-foreground mt-1">
-                Будьте первым, кто поделится своим шаблоном!
+                {search || category !== 'all'
+                  ? "Попробуйте изменить фильтры"
+                  : "Будьте первым, кто поделится своим шаблоном!"}
               </p>
             </div>
           ) : (
@@ -183,7 +257,8 @@ export default function TemplatesScreen() {
               />
             ))
           )}
-        </main>
+          </main>
+        </>
       )}
     </div>
   )

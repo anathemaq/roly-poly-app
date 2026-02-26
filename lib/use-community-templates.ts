@@ -1,7 +1,7 @@
 "use client"
 
 import useSWR from "swr"
-import { useCallback } from "react"
+import { useCallback, useState, useMemo } from "react"
 
 interface Activity {
   name: string
@@ -18,10 +18,30 @@ interface CommunityTemplate {
   downloads_count: number
   user_id: string
   created_at: string
+  category: string
   author: {
     nickname: string
   }
 }
+
+export type SortOption = 'likes' | 'newest' | 'downloads'
+export type CategoryOption = 'all' | 'productivity' | 'sport' | 'study' | 'health' | 'work' | 'other'
+
+export const TEMPLATE_CATEGORIES = [
+  { value: 'all' as const, label: 'Все' },
+  { value: 'productivity' as const, label: 'Продуктивность' },
+  { value: 'sport' as const, label: 'Спорт' },
+  { value: 'study' as const, label: 'Учёба' },
+  { value: 'health' as const, label: 'Здоровье' },
+  { value: 'work' as const, label: 'Работа' },
+  { value: 'other' as const, label: 'Другое' },
+]
+
+export const SORT_OPTIONS = [
+  { value: 'likes' as const, label: 'По лайкам' },
+  { value: 'downloads' as const, label: 'По скачиваниям' },
+  { value: 'newest' as const, label: 'По дате' },
+]
 
 const fetcher = async (url: string) => {
   const res = await fetch(url)
@@ -32,8 +52,20 @@ const fetcher = async (url: string) => {
 }
 
 export function useCommunityTemplates() {
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState<CategoryOption>('all')
+  const [sortBy, setSortBy] = useState<SortOption>('likes')
+
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams()
+    if (search) params.set('search', search)
+    if (category !== 'all') params.set('category', category)
+    params.set('sort', sortBy)
+    return params.toString()
+  }, [search, category, sortBy])
+
   const { data: templates, error, isLoading, mutate } = useSWR<CommunityTemplate[]>(
-    "/api/community/templates",
+    `/api/community/templates?${queryParams}`,
     fetcher
   )
 
@@ -106,13 +138,14 @@ export function useCommunityTemplates() {
   const publishTemplate = useCallback(async (
     name: string,
     description: string,
-    activities: Activity[]
+    activities: Activity[],
+    category: string = 'other'
   ) => {
     try {
       const res = await fetch("/api/community/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, activities }),
+        body: JSON.stringify({ name, description, activities, category }),
       })
       
       if (!res.ok) {
@@ -137,5 +170,12 @@ export function useCommunityTemplates() {
     downloadTemplate,
     publishTemplate,
     refresh: mutate,
+    // Filters
+    search,
+    setSearch,
+    category,
+    setCategory,
+    sortBy,
+    setSortBy,
   }
 }
