@@ -1,5 +1,3 @@
-"use server"
-
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -11,23 +9,27 @@ export async function GET(
   const { id } = await params
   const supabase = await createClient()
   
-  const { data, error } = await supabase
+  const { data: template, error } = await supabase
     .from('shared_templates')
-    .select(`
-      *,
-      profiles:user_id (
-        nickname,
-        avatar_url
-      )
-    `)
+    .select('*')
     .eq('id', id)
     .single()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 404 })
+  if (error || !template) {
+    return NextResponse.json({ error: error?.message || 'Not found' }, { status: 404 })
   }
 
-  return NextResponse.json(data)
+  // Fetch author profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('nickname, avatar_url')
+    .eq('id', template.user_id)
+    .single()
+
+  return NextResponse.json({
+    ...template,
+    author: profile || { nickname: 'Unknown', avatar_url: null }
+  })
 }
 
 // DELETE: Delete a template (only by owner)
