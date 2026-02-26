@@ -1,5 +1,3 @@
-"use server"
-
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -15,8 +13,16 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from('shared_templates')
     .select(`
-      *,
-      profiles:user_id (
+      id,
+      user_id,
+      name,
+      description,
+      activities,
+      likes_count,
+      downloads_count,
+      created_at,
+      updated_at,
+      author:profiles!shared_templates_user_id_fkey (
         nickname,
         avatar_url
       )
@@ -39,11 +45,14 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query
 
+  console.log("[v0] GET /api/community/templates - data:", data?.length, "error:", error?.message)
+
   if (error) {
+    console.log("[v0] GET /api/community/templates error details:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data)
+  return NextResponse.json(data || [])
 }
 
 // POST: Create a new shared template
@@ -63,6 +72,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Name and activities are required' }, { status: 400 })
   }
 
+  console.log("[v0] POST /api/community/templates - user:", user.id, "name:", name)
+
   const { data, error } = await supabase
     .from('shared_templates')
     .insert({
@@ -74,7 +85,10 @@ export async function POST(request: NextRequest) {
     .select()
     .single()
 
+  console.log("[v0] POST /api/community/templates - result:", data?.id, "error:", error?.message)
+
   if (error) {
+    console.log("[v0] POST error details:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
