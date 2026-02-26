@@ -44,10 +44,20 @@ export default function AuthorProfilePage() {
   const [templates, setTemplates] = useState<AuthorTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  console.log("[v0] AuthorProfilePage mounted, params:", params)
+
   useEffect(() => {
+    const authorId = params.id as string
+    console.log("[v0] useEffect running, authorId:", authorId)
+    if (!authorId) {
+      console.log("[v0] No authorId, stopping")
+      setIsLoading(false)
+      return
+    }
+
     async function fetchAuthor() {
       try {
-        const res = await fetch(`/api/community/authors/${params.id}`)
+        const res = await fetch(`/api/community/authors/${authorId}`)
         if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
         setProfile(data.profile)
