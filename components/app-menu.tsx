@@ -1,20 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, usePathname } from 'next/navigation'
-import { Menu, User, LogOut, Settings, Moon, Sun, Bookmark, Heart } from 'lucide-react'
-import { useTheme } from 'next-themes'
+import { Menu, User, LogOut, Bookmark, Heart } from 'lucide-react'
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 interface Profile {
@@ -22,22 +18,21 @@ interface Profile {
   avatar_url: string | null
 }
 
+// Cache for user data
+let cachedUser: SupabaseUser | null = null
+let cachedProfile: Profile | null = null
+
 export function AppMenu() {
-  const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<SupabaseUser | null>(cachedUser)
+  const [profile, setProfile] = useState<Profile | null>(cachedProfile)
+  const [isLoading, setIsLoading] = useState(!cachedUser)
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const hasFetched = useRef(false)
   
   const isAuthPage = pathname.startsWith('/auth')
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     if (isAuthPage) {
@@ -45,9 +40,16 @@ export function AppMenu() {
       return
     }
     
+    // Skip if we already have cached data and already fetched this session
+    if (cachedUser && hasFetched.current) {
+      return
+    }
+    
     const getUser = async () => {
+      hasFetched.current = true
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+      cachedUser = user
       
       if (user) {
         const { data: profileData } = await supabase
@@ -57,6 +59,7 @@ export function AppMenu() {
           .single()
         
         setProfile(profileData)
+        cachedProfile = profileData
       }
       setIsLoading(false)
     }
@@ -66,6 +69,7 @@ export function AppMenu() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setUser(session?.user ?? null)
+        cachedUser = session?.user ?? null
         if (session?.user) {
           const { data: profileData } = await supabase
             .from('profiles')
@@ -73,8 +77,10 @@ export function AppMenu() {
             .eq('id', session.user.id)
             .single()
           setProfile(profileData)
+          cachedProfile = profileData
         } else {
           setProfile(null)
+          cachedProfile = null
         }
       }
     )
@@ -98,7 +104,6 @@ export function AppMenu() {
   }
 
   const displayName = profile?.nickname || user?.email?.split('@')[0] || 'Пользователь'
-  const isDark = theme === 'dark'
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -108,81 +113,52 @@ export function AppMenu() {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-[280px] p-0">
-        <SheetHeader className="p-4 pb-2">
-          <SheetTitle className="text-left">Меню</SheetTitle>
-        </SheetHeader>
-        
-        {/* User Profile Section */}
+        {/* User Profile Section - clickable to go to profile settings */}
         {!isLoading && user && (
-          <div className="px-4 py-3">
+          <button
+            onClick={() => handleNavigate('/profile')}
+            className="w-full px-4 py-4 hover:bg-accent transition-colors"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
+          >
             <div className="flex items-center gap-3">
               {profile?.avatar_url ? (
                 <img 
                   src={profile.avatar_url} 
                   alt={displayName}
-                  className="h-10 w-10 rounded-full object-cover"
+                  className="h-12 w-12 rounded-full object-cover"
                 />
               ) : (
-                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <User className="h-5 w-5 text-primary" />
+                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+                  <User className="h-6 w-6 text-primary" />
                 </div>
               )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{displayName}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-base font-medium truncate">{displayName}</p>
+                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
               </div>
             </div>
-          </div>
+          </button>
         )}
         
         <Separator />
         
-        {/* Theme Toggle */}
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {mounted && isDark ? (
-                <Moon className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <Sun className="h-4 w-4 text-muted-foreground" />
-              )}
-              <span className="text-sm">Темная тема</span>
-            </div>
-            {mounted && (
-              <Switch
-                checked={isDark}
-                onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
-              />
-            )}
-          </div>
-        </div>
-        
-        <Separator />
-        
         {/* Navigation Links */}
-        <div className="py-2">
-          <button
-            onClick={() => handleNavigate('/profile')}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent transition-colors"
-          >
-            <Settings className="h-4 w-4 text-muted-foreground" />
-            Настройки профиля
-          </button>
+        <nav className="py-2">
           <button
             onClick={() => handleNavigate('/favorites')}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent transition-colors"
           >
-            <Bookmark className="h-4 w-4 text-muted-foreground" />
+            <Bookmark className="h-5 w-5 text-muted-foreground" />
             Избранные шаблоны
           </button>
           <button
             onClick={() => handleNavigate('/my-published')}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent transition-colors"
           >
-            <Heart className="h-4 w-4 text-muted-foreground" />
+            <Heart className="h-5 w-5 text-muted-foreground" />
             Мои публикации
           </button>
-        </div>
+        </nav>
         
         <Separator />
         
@@ -192,7 +168,7 @@ export function AppMenu() {
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-destructive hover:bg-accent transition-colors"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-5 w-5" />
             Выйти
           </button>
         </div>
