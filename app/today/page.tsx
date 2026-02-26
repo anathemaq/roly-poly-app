@@ -8,6 +8,7 @@ import type { Activity } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { AppMenu } from "@/components/app-menu"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -260,9 +261,12 @@ export default function TodayScreen() {
         className="px-3 pb-3 flex justify-between items-center border-b border-border"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        <h1 className="text-base font-semibold text-foreground">
-          {useDay().currentTemplate?.name ?? "Сегодня"}
-        </h1>
+        <div className="flex items-center gap-2">
+          <AppMenu />
+          <h1 className="text-base font-semibold text-foreground">
+            {useDay().currentTemplate?.name ?? "Сегодня"}
+          </h1>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
             {completedCount} / {totalCount}
