@@ -1,9 +1,7 @@
-"use server"
-
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 
-// POST: Increment download count
+// POST: Download template (increment count and return template data)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,18 +15,26 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Increment downloads_count
-  const { error } = await supabase.rpc('increment_downloads', { template_id: templateId })
+  // Get template data
+  const { data: template, error: fetchError } = await supabase
+    .from('shared_templates')
+    .select('id, name, description, activities')
+    .eq('id', templateId)
+    .single()
 
-  if (error) {
-    // Fallback to direct update if RPC doesn't exist
-    const { error: updateError } = await supabase
-      .from('shared_templates')
-      .update({ downloads_count: supabase.rpc('', {}) })
-      .eq('id', templateId)
-    
-    // Just ignore errors for download tracking - it's not critical
+  if (fetchError || !template) {
+    return NextResponse.json({ error: 'Template not found' }, { status: 404 })
   }
 
-  return NextResponse.json({ success: true })
+  // Increment downloads_count (non-blocking)
+  supabase.rpc('increment_downloads', { template_id: templateId }).catch(() => {})
+
+  return NextResponse.json({ 
+    success: true,
+    template: {
+      name: template.name,
+      description: template.description,
+      activities: template.activities,
+    }
+  })
 }
