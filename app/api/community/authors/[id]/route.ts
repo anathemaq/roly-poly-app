@@ -7,7 +7,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: authorId } = await params
-  console.log("[v0] Author API - authorId:", authorId)
   const supabase = await createClient()
 
   // Get author profile
@@ -16,8 +15,6 @@ export async function GET(
     .select('id, nickname, avatar_url, created_at')
     .eq('id', authorId)
     .single()
-
-  console.log("[v0] Author API - profile:", profile, "error:", profileError?.message)
 
   if (profileError || !profile) {
     return NextResponse.json({ error: 'Author not found' }, { status: 404 })

@@ -5,8 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, Heart, Download, User, Calendar, Loader2 } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
-import { ru } from "date-fns/locale"
+
 
 interface AuthorProfile {
   id: string
@@ -47,21 +46,14 @@ export default function AuthorProfilePage() {
 
   useEffect(() => {
     async function fetchAuthor() {
-      console.log("[v0] Fetching author with id:", params.id)
       try {
         const res = await fetch(`/api/community/authors/${params.id}`)
-        console.log("[v0] Author API response status:", res.status)
-        if (!res.ok) {
-          const errorData = await res.json()
-          console.log("[v0] Author API error:", errorData)
-          throw new Error('Failed to fetch')
-        }
+        if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
-        console.log("[v0] Author data received:", data)
         setProfile(data.profile)
         setTemplates(data.templates)
       } catch (error) {
-        console.error('[v0] Failed to fetch author:', error)
+        console.error('Failed to fetch author:', error)
       } finally {
         setIsLoading(false)
       }
@@ -122,7 +114,7 @@ export default function AuthorProfilePage() {
             <h1 className="text-xl font-bold text-foreground">{profile.nickname}</h1>
             <p className="text-sm text-muted-foreground flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              {formatDistanceToNow(new Date(profile.created_at), { addSuffix: true, locale: ru })}
+              {new Date(profile.created_at).toLocaleDateString('ru-RU')}
             </p>
           </div>
         </div>
