@@ -47,14 +47,21 @@ export default function AuthorProfilePage() {
 
   useEffect(() => {
     async function fetchAuthor() {
+      console.log("[v0] Fetching author with id:", params.id)
       try {
         const res = await fetch(`/api/community/authors/${params.id}`)
-        if (!res.ok) throw new Error('Failed to fetch')
+        console.log("[v0] Author API response status:", res.status)
+        if (!res.ok) {
+          const errorData = await res.json()
+          console.log("[v0] Author API error:", errorData)
+          throw new Error('Failed to fetch')
+        }
         const data = await res.json()
+        console.log("[v0] Author data received:", data)
         setProfile(data.profile)
         setTemplates(data.templates)
       } catch (error) {
-        console.error('Failed to fetch author:', error)
+        console.error('[v0] Failed to fetch author:', error)
       } finally {
         setIsLoading(false)
       }
