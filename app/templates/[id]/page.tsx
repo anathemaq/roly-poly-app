@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input"
 import { ArrowLeft, Plus, Trash2, GripVertical, Save, Share2, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTouchDrag } from "@/hooks/use-touch-drag"
-import { useCommunityTemplates } from "@/lib/use-community-templates"
+import { useCommunityTemplates, TEMPLATE_CATEGORIES } from "@/lib/use-community-templates"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -34,6 +35,7 @@ export default function TemplateDetailPage() {
   const itemRefs = useRef<(HTMLDivElement | null)[]>([])
   const [showPublishDialog, setShowPublishDialog] = useState(false)
   const [publishDescription, setPublishDescription] = useState("")
+  const [publishCategory, setPublishCategory] = useState("other")
   const [isPublishing, setIsPublishing] = useState(false)
   const { publishTemplate } = useCommunityTemplates()
   const { toast } = useToast()
@@ -111,13 +113,15 @@ export default function TemplateDetailPage() {
         name: a.name,
         duration: a.duration,
         color: a.color || "#9333ea",
-      }))
+      })),
+      publishCategory
     )
     setIsPublishing(false)
     
     if (result) {
       setShowPublishDialog(false)
       setPublishDescription("")
+      setPublishCategory("other")
       toast({
         title: "Шаблон опубликован",
         description: "Ваш шаблон теперь доступен в сообществе",
@@ -340,6 +344,21 @@ export default function TemplateDetailPage() {
             <div>
               <label className="text-sm font-medium mb-2 block">Название</label>
               <Input value={template?.name || ""} disabled className="bg-muted" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Категория</label>
+              <Select value={publishCategory} onValueChange={setPublishCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите категорию" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_CATEGORIES.filter(c => c.value !== 'all').map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">Описание (необязательно)</label>
