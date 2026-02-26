@@ -18,7 +18,7 @@ export async function POST(
   // Get template data
   const { data: template, error: fetchError } = await supabase
     .from('shared_templates')
-    .select('id, name, description, activities')
+    .select('id, name, description, activities, downloads_count')
     .eq('id', templateId)
     .single()
 
@@ -26,8 +26,15 @@ export async function POST(
     return NextResponse.json({ error: 'Template not found' }, { status: 404 })
   }
 
-  // Increment downloads_count (non-blocking)
-  supabase.rpc('increment_downloads', { template_id: templateId }).catch(() => {})
+  // Increment downloads_count (fire and forget, ignore errors)
+  try {
+    await supabase
+      .from('shared_templates')
+      .update({ downloads_count: template.downloads_count ? template.downloads_count + 1 : 1 })
+      .eq('id', templateId)
+  } catch {
+    // Ignore download count errors
+  }
 
   return NextResponse.json({ 
     success: true,
