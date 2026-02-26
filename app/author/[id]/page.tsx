@@ -43,14 +43,17 @@ export default function AuthorProfilePage() {
   const [profile, setProfile] = useState<AuthorProfile | null>(null)
   const [templates, setTemplates] = useState<AuthorTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
-
-  console.log("[v0] AuthorProfilePage mounted, params:", params)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+    
     const authorId = params.id as string
-    console.log("[v0] useEffect running, authorId:", authorId)
     if (!authorId) {
-      console.log("[v0] No authorId, stopping")
       setIsLoading(false)
       return
     }
@@ -69,9 +72,9 @@ export default function AuthorProfilePage() {
       }
     }
     fetchAuthor()
-  }, [params.id])
+  }, [params.id, mounted])
 
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
