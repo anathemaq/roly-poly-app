@@ -8,7 +8,7 @@ import { useCommunityTemplates, TEMPLATE_CATEGORIES, SORT_OPTIONS } from "@/lib/
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { ThemeToggle } from "@/components/theme-toggle"
+
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CommunityTemplateCard } from "@/components/community-template-card"
