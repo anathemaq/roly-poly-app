@@ -41,16 +41,25 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // If no user session, redirect to landing page for login
-  // Allow static assets and API routes
+  // Allow access to auth pages without login
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth')
   const isStaticAsset = request.nextUrl.pathname.startsWith('/_next') ||
     request.nextUrl.pathname.startsWith('/icons') ||
     request.nextUrl.pathname.includes('.')
   const isApiRoute = request.nextUrl.pathname.startsWith('/api')
   
-  if (!user && !isStaticAsset && !isApiRoute) {
-    const landingUrl = process.env.NEXT_PUBLIC_LANDING_URL || 'https://v0-roly-poly-landing-page-orcin.vercel.app'
-    return NextResponse.redirect(`${landingUrl}/login?redirect=${encodeURIComponent(request.url)}`)
+  // If no user and not on auth/static/api route, redirect to login
+  if (!user && !isAuthRoute && !isStaticAsset && !isApiRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    return NextResponse.redirect(url)
+  }
+
+  // If user is logged in and on auth page, redirect to home
+  if (user && isAuthRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

@@ -8,6 +8,7 @@ import { Suspense } from "react"
 import "./globals.css"
 import { MobileNav } from "@/components/mobile-nav"
 import { RegisterSW } from "@/components/register-sw"
+import { UserHeader } from "@/components/user-header"
 
 export const metadata: Metadata = {
   title: "Roly-Poly - Адаптивное планирование дня",
@@ -43,8 +44,9 @@ export default function RootLayout({
         <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <Suspense fallback={<div>Loading...</div>}>
           <DayProvider>
-            <div className="min-h-screen bg-background max-w-md mx-auto relative">
-              <div className="pb-20">{children}</div>
+            <div className="min-h-screen bg-background max-w-md mx-auto relative flex flex-col">
+              <UserHeader />
+              <div className="flex-1 pb-20">{children}</div>
               <MobileNav />
             </div>
           </DayProvider>
