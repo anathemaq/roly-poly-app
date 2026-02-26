@@ -83,7 +83,10 @@ export function UserHeader() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-between px-4 py-3 bg-card/50 border-b border-border">
+      <div 
+        className="flex items-center justify-between px-4 pb-3 bg-card/50 border-b border-border"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+      >
         <div className="h-5 w-24 bg-muted animate-pulse rounded" />
         <div className="h-8 w-8 bg-muted animate-pulse rounded-full" />
       </div>
@@ -97,7 +100,10 @@ export function UserHeader() {
   const displayName = profile?.nickname || user.email?.split('@')[0] || 'Пользователь'
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-card/50 border-b border-border">
+    <div 
+      className="flex items-center justify-between px-4 pb-3 bg-card/50 border-b border-border"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+    >
       <span className="text-sm font-medium text-foreground truncate max-w-[200px]">
         {displayName}
       </span>
