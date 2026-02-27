@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Heart, Download, User, Bookmark, Eye } from "lucide-react"
@@ -82,16 +83,14 @@ export function CommunityTemplateCard({
         </div>
 
         {/* Author */}
-        <button
+        <Link
+          href={`/author/${template.user_id}`}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
-          onClick={(e) => {
-            e.stopPropagation()
-            router.push(`/author/${template.user_id}`)
-          }}
+          onClick={(e) => e.stopPropagation()}
         >
           <User className="h-4 w-4" />
           <span className="underline-offset-2 hover:underline">{template.author.nickname}</span>
-        </button>
+        </Link>
 
         {/* Stats */}
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
