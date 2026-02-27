@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280" width="200" height="280">
+  <defs>
+    <!-- Градиенты для объема -->
+    <radialGradient id="bodyGradient" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#e53935"/>
+      <stop offset="100%" stop-color="#b71c1c"/>
+    </radialGradient>
+    <radialGradient id="bottomGradient" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#d32f2f"/>
+      <stop offset="100%" stop-color="#8b0000"/>
+    </radialGradient>
+    <radialGradient id="faceGradient" cx="40%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#ffccbc"/>
+      <stop offset="100%" stop-color="#e8a88a"/>
+    </radialGradient>
+    <radialGradient id="handGradient" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fff8e1"/>
+      <stop offset="100%" stop-color="#ffe082"/>
+    </radialGradient>
+    <radialGradient id="eyeGradient" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e0e0e0"/>
+    </radialGradient>
+    <!-- Блики -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Основная группа неваляшки (для общего покачивания) -->
+  <g id="roly-poly" transform-origin="100 240">
+    
+    <!-- Нижняя часть тела (основание) -->
+    <g id="bottom-body">
+      <ellipse cx="100" cy="220" rx="65" ry="55" fill="url(#bottomGradient)" stroke="#8b0000" stroke-width="1"/>
+      <!-- Разделительная линия -->
+      <path d="M 40 200 Q 100 215 160 200" fill="none" stroke="#6d0000" stroke-width="2"/>
+      <!-- Блик на нижней части -->
+      <ellipse cx="120" cy="230" rx="15" ry="8" fill="rgba(255,255,255,0.2)"/>
+    </g>
+
+    <!-- Верхняя часть тела -->
+    <g id="upper-body">
+      <ellipse cx="100" cy="140" rx="55" ry="65" fill="url(#bodyGradient)" stroke="#b71c1c" stroke-width="1"/>
+      <!-- Блик на теле -->
+      <ellipse cx="75" cy="120" rx="20" ry="30" fill="rgba(255,255,255,0.15)" transform="rotate(-20 75 120)"/>
+      
+      <!-- Пуговицы -->
+      <g id="buttons">
+        <circle cx="100" cy="145" r="6" fill="#fff8e1" stroke="#e0c080" stroke-width="1"/>
+        <circle cx="100" cy="165" r="6" fill="#fff8e1" stroke="#e0c080" stroke-width="1"/>
+        <circle cx="100" cy="185" r="5" fill="#fff8e1" stroke="#e0c080" stroke-width="1"/>
+      </g>
+    </g>
+
+    <!-- Левая ручка -->
+    <g id="left-hand">
+      <ellipse cx="42" cy="130" rx="18" ry="16" fill="url(#handGradient)" stroke="#e0c080" stroke-width="1"/>
+    </g>
+
+    <!-- Правая ручка -->
+    <g id="right-hand">
+      <ellipse cx="158" cy="130" rx="18" ry="16" fill="url(#handGradient)" stroke="#e0c080" stroke-width="1"/>
+    </g>
+
+    <!-- Платочек/окантовка лица -->
+    <g id="headscarf">
+      <ellipse cx="100" cy="75" rx="48" ry="55" fill="#fff8e1" stroke="#e0c080" stroke-width="2"/>
+    </g>
+
+    <!-- Лицо -->
+    <g id="face">
+      <ellipse cx="100" cy="78" rx="42" ry="48" fill="url(#faceGradient)"/>
+      
+      <!-- Волосы -->
+      <g id="hair">
+        <path d="M 70 50 Q 75 35 85 40 Q 90 30 100 35 Q 110 30 115 40 Q 125 35 130 50" 
+              fill="#a0522d" stroke="#8b4513" stroke-width="1"/>
+        <path d="M 75 55 Q 80 45 90 48" fill="none" stroke="#8b4513" stroke-width="2" stroke-linecap="round"/>
+        <path d="M 85 52 Q 95 42 105 50" fill="none" stroke="#8b4513" stroke-width="2" stroke-linecap="round"/>
+        <path d="M 100 48 Q 110 40 120 52" fill="none" stroke="#8b4513" stroke-width="2" stroke-linecap="round"/>
+      </g>
+
+      <!-- Глаза -->
+      <g id="eyes">
+        <!-- Левый глаз -->
+        <g id="left-eye">
+          <ellipse cx="80" cy="75" rx="12" ry="14" fill="url(#eyeGradient)" stroke="#888" stroke-width="0.5"/>
+          <!-- Радужка -->
+          <circle id="left-iris" cx="80" cy="77" r="7" fill="#1976d2"/>
+          <!-- Зрачок -->
+          <circle id="left-pupil" cx="80" cy="77" r="3" fill="#0d47a1"/>
+          <!-- Блик -->
+          <circle cx="77" cy="74" r="2" fill="white" opacity="0.8"/>
+          <!-- Ресницы -->
+          <g id="left-lashes" stroke="#3e2723" stroke-width="1.5" stroke-linecap="round">
+            <line x1="70" y1="65" x2="72" y2="69"/>
+            <line x1="75" y1="62" x2="76" y2="67"/>
+            <line x1="80" y1="61" x2="80" y2="66"/>
+            <line x1="85" y1="62" x2="84" y2="67"/>
+            <line x1="90" y1="65" x2="88" y2="69"/>
+          </g>
+        </g>
+        
+        <!-- Правый глаз -->
+        <g id="right-eye">
+          <ellipse cx="120" cy="75" rx="12" ry="14" fill="url(#eyeGradient)" stroke="#888" stroke-width="0.5"/>
+          <!-- Радужка -->
+          <circle id="right-iris" cx="120" cy="77" r="7" fill="#1976d2"/>
+          <!-- Зрачок -->
+          <circle id="right-pupil" cx="120" cy="77" r="3" fill="#0d47a1"/>
+          <!-- Блик -->
+          <circle cx="117" cy="74" r="2" fill="white" opacity="0.8"/>
+          <!-- Ресницы -->
+          <g id="right-lashes" stroke="#3e2723" stroke-width="1.5" stroke-linecap="round">
+            <line x1="110" y1="65" x2="112" y2="69"/>
+            <line x1="115" y1="62" x2="116" y2="67"/>
+            <line x1="120" y1="61" x2="120" y2="66"/>
+            <line x1="125" y1="62" x2="124" y2="67"/>
+            <line x1="130" y1="65" x2="128" y2="69"/>
+          </g>
+        </g>
+      </g>
+
+      <!-- Брови -->
+      <g id="eyebrows" stroke="#5d4037" stroke-width="2" stroke-linecap="round" fill="none">
+        <path id="left-eyebrow" d="M 68 58 Q 80 54 90 58"/>
+        <path id="right-eyebrow" d="M 110 58 Q 120 54 132 58"/>
+      </g>
+
+      <!-- Нос -->
+      <g id="nose">
+        <ellipse cx="100" cy="90" rx="4" ry="3" fill="#e8a88a"/>
+      </g>
+
+      <!-- Рот -->
+      <g id="mouth">
+        <path id="smile" d="M 90 102 Q 100 112 110 102" fill="none" stroke="#c62828" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+
+      <!-- Румянец -->
+      <g id="blush" opacity="0.5">
+        <ellipse cx="65" cy="92" rx="8" ry="5" fill="#ff8a80"/>
+        <ellipse cx="135" cy="92" rx="8" ry="5" fill="#ff8a80"/>
+      </g>
+    </g>
+
+  </g>
+</svg>
