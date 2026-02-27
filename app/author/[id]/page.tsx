@@ -48,20 +48,29 @@ export default function AuthorProfilePage({
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    console.log("[v0] Author page useEffect, authorId:", authorId)
     if (!authorId) {
+      console.log("[v0] No authorId, returning")
       setIsLoading(false)
       return
     }
 
     async function fetchAuthor() {
+      console.log("[v0] Fetching author:", authorId)
       try {
         const res = await fetch(`/api/community/authors/${authorId}`)
-        if (!res.ok) throw new Error('Failed to fetch')
+        console.log("[v0] API response status:", res.status)
+        if (!res.ok) {
+          const errorText = await res.text()
+          console.log("[v0] API error:", errorText)
+          throw new Error('Failed to fetch')
+        }
         const data = await res.json()
+        console.log("[v0] Author data:", data)
         setProfile(data.profile)
         setTemplates(data.templates)
       } catch (error) {
-        console.error('Failed to fetch author:', error)
+        console.error('[v0] Failed to fetch author:', error)
       } finally {
         setIsLoading(false)
       }
