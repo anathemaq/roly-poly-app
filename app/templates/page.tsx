@@ -12,9 +12,8 @@ import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { AppMenu } from "@/components/app-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CommunityTemplateCard } from "@/components/community-template-card"
-import { Plus, Trash2, ChevronRight, Loader2, Users, FolderOpen, Search, SlidersHorizontal } from "lucide-react"
+import { TemplateKataCard } from "@/components/template-kata-card"
+import { Plus, Trash2, ChevronRight, Loader2, Users, FolderOpen, Search } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 
@@ -143,37 +142,47 @@ export default function TemplatesScreen() {
                 const minutes = totalDuration % 60
 
                 return (
-                  <Card
+                  <div
                     key={template.id}
-                    className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+                    className="group relative flex cursor-pointer overflow-hidden rounded-lg bg-card hover:bg-card/80 transition-all duration-200 border border-border/50"
                     onClick={() => router.push(`/templates/${template.id}`)}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground text-lg">{template.name}</h3>
-                        <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                          <span>{template.activities.length} активностей</span>
-                          <span>•</span>
-                          <span>
-                            {hours > 0 && `${hours}ч `}
-                            {minutes}м
-                          </span>
+                    {/* Color indicator based on first activity */}
+                    <div 
+                      className="w-1.5 shrink-0" 
+                      style={{ backgroundColor: template.activities[0]?.color || "#6b7280" }}
+                    />
+
+                    <div className="flex-1 p-3 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
+                            {template.name}
+                          </h3>
+                          <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              {template.activities.length} активностей
+                            </span>
+                            <span className="flex items-center gap-1">
+                              {hours > 0 ? `${hours}ч ${minutes}м` : `${minutes}м`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => handleDelete(template.id, e)}
+                            className="h-8 w-8 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => handleDelete(template.id, e)}
-                          className="h-9 w-9 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
                     </div>
-                  </Card>
+                  </div>
                 )
               })
             )}
@@ -193,7 +202,7 @@ export default function TemplatesScreen() {
         </>
       ) : (
         <>
-          {/* Search and Filters */}
+          {/* Search and Filters - Codewars style */}
           <div className="px-4 pt-4 space-y-3">
             {/* Search */}
             <div className="relative">
@@ -202,38 +211,42 @@ export default function TemplatesScreen() {
                 placeholder="Поиск по названию..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
+                className="pl-9 h-9 text-sm"
               />
             </div>
             
-            {/* Category and Sort */}
-            <div className="flex gap-2">
-              <Select value={category} onValueChange={(v) => setCategory(v as typeof category)}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Категория" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TEMPLATE_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                <SelectTrigger className="w-[140px]">
-                  <SlidersHorizontal className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Сортировка" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Sort chips */}
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+              {SORT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSortBy(opt.value)}
+                  className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                    sortBy === opt.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Category chips */}
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+              {TEMPLATE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => setCategory(cat.value)}
+                  className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                    category === cat.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -258,7 +271,7 @@ export default function TemplatesScreen() {
             </div>
           ) : (
             communityTemplates.map((template) => (
-              <CommunityTemplateCard
+              <TemplateKataCard
                 key={template.id}
                 template={template}
                 isLiked={userLikes.includes(template.id)}
