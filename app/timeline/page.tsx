@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useMemo, memo } from "react"
 import { useDay } from "@/lib/day-context"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ThemeToggle } from "@/components/theme-toggle"
+
 import { Calendar, Clock, Undo2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -780,11 +780,10 @@ export default function TimelineScreen() {
     <div className="fixed inset-0 bg-background flex flex-col z-10" style={{ overscrollBehavior: 'none' }}>
       {/* Header */}
       <header
-        className="px-3 pb-3 flex justify-between items-center border-b border-border flex-shrink-0"
+        className="px-3 pb-3 flex items-center border-b border-border flex-shrink-0"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
         <h1 className="text-base font-semibold text-foreground">Таймлайн</h1>
-        <ThemeToggle />
       </header>
 
       {/* Timeline -- single scroll container, touch-action: pan-y blocks horizontal swipe-back */}

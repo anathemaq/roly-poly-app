@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 
-import { ThemeToggle } from "@/components/theme-toggle"
+
 import { AppMenu } from "@/components/app-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TemplateKataCard } from "@/components/template-kata-card"
@@ -105,7 +105,6 @@ export default function TemplatesScreen() {
           <AppMenu />
           <h1 className="text-base font-semibold text-foreground">Шаблоны</h1>
         </div>
-        <ThemeToggle />
       </header>
 
       {/* Tabs */}

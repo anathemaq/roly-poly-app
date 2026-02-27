@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ThemeToggle } from "@/components/theme-toggle"
+
 import { Play, Pause, RotateCcw, SkipForward } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDay, POMODORO_PRESETS } from "@/lib/day-context"
@@ -36,12 +36,7 @@ export default function FocusScreen() {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col overflow-hidden" style={{ overscrollBehavior: 'none', touchAction: 'none' }}>
-      <header
-        className="px-3 pb-3 flex justify-end items-center"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
-      >
-        <ThemeToggle />
-      </header>
+
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 space-y-6 overflow-hidden">
         <div className="w-full space-y-6">

@@ -7,7 +7,7 @@ import { useDay } from "@/lib/day-context"
 import type { Activity } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ThemeToggle } from "@/components/theme-toggle"
+
 import { AppMenu } from "@/components/app-menu"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -267,12 +267,9 @@ export default function TodayScreen() {
             {useDay().currentTemplate?.name ?? "Сегодня"}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            {completedCount} / {totalCount}
-          </span>
-          <ThemeToggle />
-        </div>
+        <span className="text-xs text-muted-foreground">
+          {completedCount} / {totalCount}
+        </span>
       </header>
 
       {/* Current Activity Section */}
