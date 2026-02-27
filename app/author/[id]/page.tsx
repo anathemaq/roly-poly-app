@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState, use } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, Heart, Download, User, Calendar, Loader2 } from "lucide-react"
@@ -36,41 +36,29 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Другое',
 }
 
-export default function AuthorProfilePage({ 
-  params 
-}: { 
-  params: Promise<{ id: string }> 
-}) {
-  const { id: authorId } = use(params)
+export default function AuthorProfilePage() {
+  const params = useParams()
+  const authorId = params.id as string
   const router = useRouter()
   const [profile, setProfile] = useState<AuthorProfile | null>(null)
   const [templates, setTemplates] = useState<AuthorTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    console.log("[v0] Author page useEffect, authorId:", authorId)
     if (!authorId) {
-      console.log("[v0] No authorId, returning")
       setIsLoading(false)
       return
     }
 
     async function fetchAuthor() {
-      console.log("[v0] Fetching author:", authorId)
       try {
         const res = await fetch(`/api/community/authors/${authorId}`)
-        console.log("[v0] API response status:", res.status)
-        if (!res.ok) {
-          const errorText = await res.text()
-          console.log("[v0] API error:", errorText)
-          throw new Error('Failed to fetch')
-        }
+        if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
-        console.log("[v0] Author data:", data)
         setProfile(data.profile)
         setTemplates(data.templates)
       } catch (error) {
-        console.error('[v0] Failed to fetch author:', error)
+        console.error('Failed to fetch author:', error)
       } finally {
         setIsLoading(false)
       }
