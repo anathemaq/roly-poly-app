@@ -1,11 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, Heart, Download, User, Calendar, Loader2 } from "lucide-react"
-
 
 interface AuthorProfile {
   id: string
@@ -39,20 +38,13 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function AuthorProfilePage() {
   const params = useParams()
+  const authorId = params.id as string
   const router = useRouter()
   const [profile, setProfile] = useState<AuthorProfile | null>(null)
   const [templates, setTemplates] = useState<AuthorTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!mounted) return
-    
-    const authorId = params.id as string
     if (!authorId) {
       setIsLoading(false)
       return
@@ -72,9 +64,9 @@ export default function AuthorProfilePage() {
       }
     }
     fetchAuthor()
-  }, [params.id, mounted])
+  }, [authorId])
 
-  if (!mounted || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
