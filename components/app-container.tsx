@@ -109,7 +109,7 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={`min-h-screen bg-background max-w-md mx-auto relative flex flex-col ${
+      className={`h-screen bg-background max-w-md mx-auto relative flex flex-col overflow-hidden ${
         isDragging ? '' : 'transition-transform duration-300 ease-out'
       }`}
       style={{ transform: `translateX(${getTranslateX()}px)` }}
@@ -118,7 +118,7 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
     >
-      <div className="flex-1 pb-20">{children}</div>
+      <div className="flex-1 overflow-y-auto pb-20">{children}</div>
       <MobileNav />
     </div>
   )
