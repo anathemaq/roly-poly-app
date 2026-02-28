@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 
 interface UseTouchDragOptions {
   onReorder: (fromIndex: number, toIndex: number) => void
@@ -17,6 +17,22 @@ export function useTouchDrag({ onReorder, onTap, longPressDuration = 500 }: UseT
   const startY = useRef(0)
   const currentY = useRef(0)
   const hasMoved = useRef(false)
+
+  // Block scroll using overscroll-behavior when dragging
+  useEffect(() => {
+    if (draggedIndex !== null) {
+      // Use overscroll-behavior instead of overflow:hidden to prevent nav issues
+      document.documentElement.style.overscrollBehavior = 'none'
+      document.body.style.overscrollBehavior = 'none'
+      document.body.style.touchAction = 'none'
+      
+      return () => {
+        document.documentElement.style.overscrollBehavior = ''
+        document.body.style.overscrollBehavior = ''
+        document.body.style.touchAction = ''
+      }
+    }
+  }, [draggedIndex])
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent, index: number) => {
