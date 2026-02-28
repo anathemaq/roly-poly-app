@@ -1,8 +1,7 @@
 "use client"
 
-import { useRef, useCallback, useEffect } from "react"
+import { useRef, useCallback } from "react"
 import { useMenu, MENU_WIDTH } from "@/lib/menu-context"
-import { MobileNav } from "@/components/mobile-nav"
 import { usePathname } from "next/navigation"
 
 const EDGE_THRESHOLD = 30 // px from left edge to start swipe
@@ -109,7 +108,7 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={`h-screen bg-background max-w-md mx-auto relative flex flex-col overflow-hidden ${
+      className={`min-h-screen bg-background max-w-md mx-auto relative pb-20 ${
         isDragging ? '' : 'transition-transform duration-300 ease-out'
       }`}
       style={{ transform: `translateX(${getTranslateX()}px)` }}
@@ -118,8 +117,7 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
     >
-      <div className="flex-1 overflow-y-auto pb-20">{children}</div>
-      <MobileNav />
+      {children}
     </div>
   )
 }

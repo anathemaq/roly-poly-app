@@ -10,6 +10,7 @@ import { RegisterSW } from "@/components/register-sw"
 import { MenuProvider } from "@/lib/menu-context"
 import { SidebarMenu } from "@/components/sidebar-menu"
 import { AppContainer } from "@/components/app-container"
+import { MobileNav } from "@/components/mobile-nav"
 
 export const metadata: Metadata = {
   title: "Roly-Poly - Адаптивное планирование дня",
@@ -48,6 +49,7 @@ export default function RootLayout({
             <DayProvider>
               <SidebarMenu />
               <AppContainer>{children}</AppContainer>
+              <MobileNav />
             </DayProvider>
           </MenuProvider>
         </Suspense>
