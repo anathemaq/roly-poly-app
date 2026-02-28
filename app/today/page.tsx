@@ -255,7 +255,7 @@ export default function TodayScreen() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       {/* Header */}
       <header
         className="px-3 pb-3 flex justify-between items-center border-b border-border"
@@ -357,8 +357,8 @@ export default function TodayScreen() {
 
         <main
         className={cn(
-          "flex-1 p-3 space-y-2",
-          (isDragOperation || isTouchDragging) ? "overflow-hidden touch-none" : "overflow-y-auto",
+          "p-3 space-y-2",
+          (isDragOperation || isTouchDragging) && "touch-none",
         )}
       >
         <h3 className="text-xs font-medium text-muted-foreground px-2 mb-2">Расписание дня</h3>

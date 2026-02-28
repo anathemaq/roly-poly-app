@@ -96,7 +96,7 @@ export default function TemplatesScreen() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       <header
         className="px-3 pb-3 flex justify-between items-center border-b border-border"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
@@ -125,7 +125,7 @@ export default function TemplatesScreen() {
 
       {activeTab === "my" ? (
         <>
-          <main className="flex-1 overflow-y-auto p-4 space-y-3">
+          <main className="p-4 space-y-3">
             {templates.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
@@ -249,7 +249,7 @@ export default function TemplatesScreen() {
             </div>
           </div>
 
-          <main className="flex-1 overflow-y-auto p-4 space-y-3">
+          <main className="p-4 space-y-3">
           {isCommunityLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
