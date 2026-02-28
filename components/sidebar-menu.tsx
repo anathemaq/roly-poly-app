@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter, usePathname } from "next/navigation"
 import { User, LogOut, Bookmark, Heart } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
-import { useMenu } from "@/lib/menu-context"
+import { useMenu, MENU_WIDTH } from "@/lib/menu-context"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 interface Profile {
@@ -18,7 +18,7 @@ let cachedUser: SupabaseUser | null = null
 let cachedProfile: Profile | null = null
 
 export function SidebarMenu() {
-  const { isOpen, setIsOpen } = useMenu()
+  const { isOpen, setIsOpen, dragOffset, isDragging } = useMenu()
   const [user, setUser] = useState<SupabaseUser | null>(cachedUser)
   const [profile, setProfile] = useState<Profile | null>(cachedProfile)
   const [isLoading, setIsLoading] = useState(!cachedUser)
@@ -101,22 +101,43 @@ export function SidebarMenu() {
 
   const displayName = profile?.nickname || user?.email?.split("@")[0] || "Пользователь"
 
+  // Calculate sidebar position
+  const getTranslateX = () => {
+    if (isDragging) {
+      return Math.min(0, -MENU_WIDTH + dragOffset)
+    }
+    return isOpen ? 0 : -MENU_WIDTH
+  }
+
+  // Calculate overlay opacity
+  const getOverlayOpacity = () => {
+    if (isDragging) {
+      return Math.min(0.5, (dragOffset / MENU_WIDTH) * 0.5)
+    }
+    return isOpen ? 0.5 : 0
+  }
+
   return (
     <>
       {/* Overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 transition-opacity"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+      <div
+        className={`fixed inset-0 bg-black z-40 ${
+          isDragging ? '' : 'transition-opacity duration-300 ease-out'
+        } ${isOpen || isDragging ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        style={{ opacity: getOverlayOpacity() }}
+        onClick={() => setIsOpen(false)}
+      />
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-[280px] bg-background border-r border-border z-50 transform transition-transform duration-300 ease-out ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed top-0 left-0 h-full bg-background border-r border-border z-50 ${
+          isDragging ? '' : 'transition-transform duration-300 ease-out'
         }`}
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+        style={{ 
+          width: MENU_WIDTH,
+          transform: `translateX(${getTranslateX()}px)`,
+          paddingTop: "env(safe-area-inset-top, 0px)",
+        }}
       >
         {/* User Profile Section */}
         {!isLoading && user && (
