@@ -41,26 +41,29 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // TEMPORARILY DISABLED: Auth redirect for local testing
+  // TODO: Re-enable authentication after testing
+  
   // Allow access to auth pages without login
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth')
-  const isStaticAsset = request.nextUrl.pathname.startsWith('/_next') ||
-    request.nextUrl.pathname.startsWith('/icons') ||
-    request.nextUrl.pathname.includes('.')
-  const isApiRoute = request.nextUrl.pathname.startsWith('/api')
+  // const isAuthRoute = request.nextUrl.pathname.startsWith('/auth')
+  // const isStaticAsset = request.nextUrl.pathname.startsWith('/_next') ||
+  //   request.nextUrl.pathname.startsWith('/icons') ||
+  //   request.nextUrl.pathname.includes('.')
+  // const isApiRoute = request.nextUrl.pathname.startsWith('/api')
   
   // If no user and not on auth/static/api route, redirect to login
-  if (!user && !isAuthRoute && !isStaticAsset && !isApiRoute) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
-  }
+  // if (!user && !isAuthRoute && !isStaticAsset && !isApiRoute) {
+  //   const url = request.nextUrl.clone()
+  //   url.pathname = '/auth/login'
+  //   return NextResponse.redirect(url)
+  // }
 
   // If user is logged in and on auth page, redirect to home
-  if (user && isAuthRoute) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
-  }
+  // if (user && isAuthRoute) {
+  //   const url = request.nextUrl.clone()
+  //   url.pathname = '/'
+  //   return NextResponse.redirect(url)
+  // }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   // If you're creating a new response object with NextResponse.next() make sure to:

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useDay } from "@/lib/day-context"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
+
 import { AppMenu } from "@/components/app-menu"
 import { IOSPicker } from "@/components/ios-picker"
 import { Play } from "lucide-react"
@@ -65,11 +65,10 @@ export default function StartScreen() {
       style={{ overscrollBehavior: 'none', touchAction: 'none' }}
     >
       <header
-        className="px-4 pb-2 flex justify-between items-center flex-shrink-0"
+        className="px-4 pb-2 flex items-center flex-shrink-0"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
       >
         <AppMenu />
-        <ThemeToggle />
       </header>
 
       <main className="flex-1 flex flex-col px-4 pb-[calc(56px+env(safe-area-inset-bottom)+8px)] overflow-hidden">

@@ -236,28 +236,28 @@ export default function TemplateDetailPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Template name input */}
-        <Card className="p-4">
-          <label className="text-sm font-medium text-foreground mb-2 block">Название шаблона</label>
+        {/* Template name input - Codewars style */}
+        <div className="space-y-2">
           <Input
             value={template.name}
             onChange={(e) => setTemplate({ ...template, name: e.target.value })}
-            placeholder="Например: Рабочий день"
-            className="text-base"
+            placeholder="Название шаблона..."
+            className="text-lg font-semibold h-12 border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-primary bg-transparent"
           />
           {template.activities.length > 0 && (
-            <div className="mt-3 text-sm text-muted-foreground">
-              {template.activities.length} активностей • {hours > 0 && `${hours}ч `}
-              {minutes}м
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>{template.activities.length} активностей</span>
+              <span>•</span>
+              <span>{hours > 0 ? `${hours}ч ${minutes}м` : `${minutes}м`}</span>
             </div>
           )}
-        </Card>
+        </div>
 
-        {/* Activities list */}
+        {/* Activities list - Codewars style */}
         <div className="space-y-2">
-          <h2 className="text-sm font-medium text-foreground px-1">Активности</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Активности</h2>
           {template.activities.map((activity, index) => (
-            <Card
+            <div
               key={activity.id}
               ref={(el) => (itemRefs.current[index] = el)}
               draggable
@@ -265,69 +265,79 @@ export default function TemplateDetailPage() {
               onDragOver={(e) => handleDragOver(e, index)}
               onDragEnd={handleDragEnd}
               className={cn(
-                "p-3 transition-all duration-150",
-                (draggedIndex === index || touchDrag.draggedIndex === index) && "opacity-50 scale-[1.03] shadow-lg",
-                touchDrag.dragOverIndex === index && touchDrag.draggedIndex !== index && "ring-2 ring-primary bg-primary/5",
+                "group relative flex overflow-hidden rounded-lg bg-card border border-border/50 transition-all duration-150",
+                (draggedIndex === index || touchDrag.draggedIndex === index) && "opacity-50 scale-[1.02] shadow-lg",
+                touchDrag.dragOverIndex === index && touchDrag.draggedIndex !== index && "ring-2 ring-primary",
               )}
             >
-              <div className="flex items-start gap-2">
-                <div
-                  className="touch-none cursor-grab active:cursor-grabbing pt-2"
-                  onTouchStart={(e) => touchDrag.handleTouchStart(e, index)}
-                  onTouchMove={(e) => touchDrag.handleTouchMove(e, itemRefs.current.filter(Boolean) as HTMLElement[])}
-                  onTouchEnd={() => touchDrag.handleTouchEnd(index)}
-                  onTouchCancel={touchDrag.handleTouchCancel}
-                >
-                  <GripVertical className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                </div>
-                <div className="flex-1 space-y-2 min-w-0">
-                  <Input
-                    value={activity.name}
-                    onChange={(e) => handleUpdateActivity(activity.id, "name", e.target.value)}
-                    placeholder="Название активности"
-                    className="text-base"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={durationInputs[activity.id] || ""}
-                      onChange={(e) => handleUpdateActivity(activity.id, "duration", e.target.value)}
-                      onBlur={(e) => {
-                        const val = Number.parseInt(e.target.value)
-                        if (!val || val < 1) {
-                          setDurationInputs({ ...durationInputs, [activity.id]: "5" })
-                          setTemplate({
-                            ...template,
-                            activities: template.activities.map((a) =>
-                              a.id === activity.id ? { ...a, duration: 5 } : a,
-                            ),
-                          })
-                        }
-                      }}
-                      min="1"
-                      step="5"
-                      className="w-20 text-base"
-                    />
-                    <span className="text-sm text-muted-foreground">минут</span>
+              {/* Color indicator */}
+              <div 
+                className="w-1.5 shrink-0 bg-primary/60"
+              />
+
+              <div className="flex-1 p-3 min-w-0">
+                <div className="flex items-start gap-2">
+                  <div
+                    className="touch-none cursor-grab active:cursor-grabbing pt-1"
+                    onTouchStart={(e) => touchDrag.handleTouchStart(e, index)}
+                    onTouchMove={(e) => touchDrag.handleTouchMove(e, itemRefs.current.filter(Boolean) as HTMLElement[])}
+                    onTouchEnd={() => touchDrag.handleTouchEnd(index)}
+                    onTouchCancel={touchDrag.handleTouchCancel}
+                  >
+                    <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   </div>
+                  <div className="flex-1 space-y-2 min-w-0">
+                    <Input
+                      value={activity.name}
+                      onChange={(e) => handleUpdateActivity(activity.id, "name", e.target.value)}
+                      placeholder="Название активности"
+                      className="text-sm h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={durationInputs[activity.id] || ""}
+                        onChange={(e) => handleUpdateActivity(activity.id, "duration", e.target.value)}
+                        onBlur={(e) => {
+                          const val = Number.parseInt(e.target.value)
+                          if (!val || val < 1) {
+                            setDurationInputs({ ...durationInputs, [activity.id]: "5" })
+                            setTemplate({
+                              ...template,
+                              activities: template.activities.map((a) =>
+                                a.id === activity.id ? { ...a, duration: 5 } : a,
+                              ),
+                            })
+                          }
+                        }}
+                        min="1"
+                        step="5"
+                        className="w-16 h-7 text-xs"
+                      />
+                      <span className="text-xs text-muted-foreground">мин</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteActivity(activity.id)}
+                    className="h-8 w-8 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDeleteActivity(activity.id)}
-                  className="h-9 w-9 text-destructive hover:text-destructive flex-shrink-0"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
               </div>
-            </Card>
+            </div>
           ))}
 
           {/* Add activity button */}
-          <Button variant="outline" onClick={handleAddActivity} className="w-full bg-transparent">
-            <Plus className="h-4 w-4 mr-2" />
+          <button
+            onClick={handleAddActivity}
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-foreground border border-dashed border-border/50 rounded-lg hover:border-primary/50 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
             Добавить активность
-          </Button>
+          </button>
         </div>
       </main>
 

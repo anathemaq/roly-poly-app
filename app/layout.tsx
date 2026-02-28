@@ -6,8 +6,10 @@ import { Analytics } from "@vercel/analytics/next"
 import { DayProvider } from "@/lib/day-context"
 import { Suspense } from "react"
 import "./globals.css"
-import { MobileNav } from "@/components/mobile-nav"
 import { RegisterSW } from "@/components/register-sw"
+import { MenuProvider } from "@/lib/menu-context"
+import { SidebarMenu } from "@/components/sidebar-menu"
+import { AppContainer } from "@/components/app-container"
 
 export const metadata: Metadata = {
   title: "Roly-Poly - Адаптивное планирование дня",
@@ -42,12 +44,12 @@ export default function RootLayout({
         </head>
         <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <Suspense fallback={<div>Loading...</div>}>
-          <DayProvider>
-            <div className="min-h-screen bg-background max-w-md mx-auto relative flex flex-col">
-              <div className="flex-1 pb-20">{children}</div>
-              <MobileNav />
-            </div>
-          </DayProvider>
+          <MenuProvider>
+            <DayProvider>
+              <SidebarMenu />
+              <AppContainer>{children}</AppContainer>
+            </DayProvider>
+          </MenuProvider>
         </Suspense>
           <Analytics />
           <RegisterSW />
