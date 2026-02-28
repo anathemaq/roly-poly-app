@@ -57,28 +57,8 @@ export default function TodayScreen() {
     longPressDuration: 250,
   })
 
-  // Отключаем скролл страницы во время перетаскивания (мышь или тач)
+  // Track touch dragging state
   const isTouchDragging = touchDrag.draggedIndex !== null
-  useEffect(() => {
-    const lock = isDragOperation || isTouchDragging
-    if (lock) {
-      const prevBodyOverflow = document.body.style.overflow
-      const prevHtmlOverflow = document.documentElement.style.overflow
-      document.body.style.overflow = "hidden"
-      document.documentElement.style.overflow = "hidden"
-      // overscroll-behavior предотвращает резинку на мобильных
-      const prevBodyOverscroll = (document.body.style as any).overscrollBehavior
-      const prevHtmlOverscroll = (document.documentElement.style as any).overscrollBehavior
-      ;(document.body.style as any).overscrollBehavior = "none"
-      ;(document.documentElement.style as any).overscrollBehavior = "none"
-      return () => {
-        document.body.style.overflow = prevBodyOverflow
-        document.documentElement.style.overflow = prevHtmlOverflow
-        ;(document.body.style as any).overscrollBehavior = prevBodyOverscroll
-        ;(document.documentElement.style as any).overscrollBehavior = prevHtmlOverscroll
-      }
-    }
-  }, [isDragOperation, isTouchDragging])
 
   useEffect(() => {
     const updateCurrent = () => {
@@ -196,7 +176,7 @@ export default function TodayScreen() {
   const handleDragEnd = () => {
     setDraggedIndex(null)
     setDragOverIndex(null)
-    setTimeout(() => setIsDragOperation(false), 100)
+    setIsDragOperation(false)
   }
 
   const openEditDialog = (activity: Activity) => {
@@ -355,12 +335,7 @@ export default function TodayScreen() {
           )}
         </div>
 
-        <main
-        className={cn(
-          "p-3 space-y-2",
-          (isDragOperation || isTouchDragging) && "touch-none",
-        )}
-      >
+        <main className="p-3 space-y-2">
         <h3 className="text-xs font-medium text-muted-foreground px-2 mb-2">Расписание дня</h3>
         {currentActivities.map((activity, index) => {
           const isCurrent = currentActivity?.id === activity.id
