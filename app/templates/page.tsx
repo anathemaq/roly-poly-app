@@ -123,21 +123,21 @@ export default function TemplatesScreen() {
         </Tabs>
       </div>
 
-      {/* Sticky Create Button */}
-      <div
-        className="fixed left-0 right-0 p-4 z-10 bg-gradient-to-t from-background via-background to-transparent"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
-      >
-        <div className="max-w-md mx-auto">
-          <Button onClick={handleCreateNew} className="w-full flex items-center gap-2 shadow-lg">
-            <Plus className="h-5 w-5" />
-            Создать шаблон
-          </Button>
-        </div>
-      </div>
-
       {activeTab === "my" ? (
         <>
+          {/* Sticky Create Button - only in My tab */}
+          <div
+            className="fixed left-0 right-0 p-4 z-10 bg-gradient-to-t from-background via-background to-transparent"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
+          >
+            <div className="max-w-md mx-auto">
+              <Button onClick={handleCreateNew} className="w-full flex items-center gap-2 shadow-lg">
+                <Plus className="h-5 w-5" />
+                Создать шаблон
+              </Button>
+            </div>
+          </div>
+
           <main className="p-4 pb-28 space-y-3">
             {templates.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -250,7 +250,7 @@ export default function TemplatesScreen() {
             </div>
           </div>
 
-          <main className="p-4 pb-28 space-y-3">
+          <main className="p-4 space-y-3">
           {isCommunityLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
