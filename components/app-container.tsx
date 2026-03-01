@@ -5,6 +5,7 @@ import { useMenu, MENU_WIDTH } from "@/lib/menu-context"
 import { usePathname } from "next/navigation"
 
 const EDGE_THRESHOLD = 30 // px from left edge to start swipe
+const DISABLE_BACK_SWIPE = true // Disable browser back swipe gesture
 const VELOCITY_THRESHOLD = 0.3 // px/ms to trigger open/close
 
 export function AppContainer({ children }: { children: React.ReactNode }) {
@@ -111,7 +112,10 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
       className={`min-h-screen bg-background max-w-md mx-auto relative pb-20 ${
         isDragging ? '' : 'transition-transform duration-300 ease-out'
       }`}
-      style={{ transform: `translateX(${getTranslateX()}px)` }}
+      style={{ 
+        transform: `translateX(${getTranslateX()}px)`,
+        overscrollBehaviorX: 'none', // Disable horizontal overscroll (browser back gesture)
+      }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

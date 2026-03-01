@@ -185,7 +185,7 @@ export default function TemplatesScreen() {
                             variant="ghost"
                             size="icon"
                             onClick={(e) => handleDelete(template.id, e)}
-                            className="h-8 w-8 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
