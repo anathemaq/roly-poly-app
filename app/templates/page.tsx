@@ -125,7 +125,7 @@ export default function TemplatesScreen() {
 
       {activeTab === "my" ? (
         <>
-          <main className="p-4 space-y-3">
+          <main className="p-4 pb-24 space-y-3">
             {templates.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
