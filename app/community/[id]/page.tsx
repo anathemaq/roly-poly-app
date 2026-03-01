@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { ArrowLeft, Heart, Download, User, Trash2, Loader2, Pencil, Bookmark } from "lucide-react"
+import { ArrowLeft, Heart, Download, User, Trash2, Loader2, Pencil, Bookmark, Clock } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -20,6 +19,16 @@ import { useCommunityTemplates, TEMPLATE_CATEGORIES } from "@/lib/use-community-
 import { useDay } from "@/lib/day-context"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
+import Link from "next/link"
+
+const CATEGORY_LABELS: Record<string, string> = {
+  productivity: 'Продуктивность',
+  sport: 'Спорт',
+  study: 'Учёба',
+  health: 'Здоровье',
+  work: 'Работа',
+  other: 'Другое',
+}
 
 interface CommunityTemplate {
   id: string
@@ -92,7 +101,6 @@ export default function CommunityTemplatePage() {
     if (!template) return
     setIsLikeLoading(true)
     await toggleLike(template.id)
-    // Update local state
     setTemplate(prev => prev ? {
       ...prev,
       likes_count: prev.likes_count + (isLiked ? -1 : 1)
@@ -211,81 +219,87 @@ export default function CommunityTemplatePage() {
   const minutes = totalDuration % 60
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-20">
+    <div className="flex flex-col">
+      {/* Header */}
       <header
-        className="px-3 pb-3 flex items-center gap-3 border-b border-border"
+        className="px-4 pb-3 flex items-center gap-3 border-b border-border"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-base font-semibold text-foreground flex-1 truncate">
-          {template.name}
-        </h1>
-        {isOwner && (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={openEditDialog}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="text-destructive hover:text-destructive"
-            >
-              {isDeleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
-          </>
-        )}
+        <span className="text-xs text-muted-foreground">Шаблон сообщества</span>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Description */}
-        {template.description && (
-          <p className="text-muted-foreground">{template.description}</p>
-        )}
+      <main className="p-4 space-y-6">
+        {/* Title and meta */}
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-xl font-bold text-foreground leading-tight">
+              {template.name}
+            </h1>
+            {isOwner && (
+              <div className="flex items-center gap-1 shrink-0">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={openEditDialog}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                </Button>
+              </div>
+            )}
+          </div>
 
-        {/* Author */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <User className="h-4 w-4" />
-          <button
-            onClick={() => router.push(`/author/${template.user_id}`)}
-            className="hover:text-foreground underline-offset-2 hover:underline transition-colors"
-          >
-            {template.author.nickname}
-          </button>
-          {isOwner && (
-            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-              Ваш шаблон
+          {/* Category badge */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+              {CATEGORY_LABELS[template.category] || template.category}
             </span>
+            {isOwner && (
+              <span className="text-xs px-2 py-1 rounded-full bg-accent text-accent-foreground">
+                Ваш шаблон
+              </span>
+            )}
+          </div>
+
+          {/* Description */}
+          {template.description && (
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {template.description}
+            </p>
           )}
+
+          {/* Author */}
+          <Link
+            href={`/author/${template.user_id}`}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+          >
+            <User className="h-4 w-4" />
+            <span className="underline-offset-2 hover:underline">{template.author.nickname}</span>
+          </Link>
+
+          {/* Stats row */}
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" />
+              {hours > 0 ? `${hours}ч ${minutes}м` : `${minutes}м`}
+            </span>
+            <span>{template.activities.length} активностей</span>
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>{template.activities.length} активностей</span>
-          <span>•</span>
-          <span>
-            {hours > 0 && `${hours}ч `}
-            {minutes}м
-          </span>
-        </div>
-
-        {/* Activity timeline preview */}
-        <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-muted">
+        {/* Activity timeline bar */}
+        <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
           {template.activities.map((activity, index) => (
             <div
               key={index}
-              className="h-full"
+              className="h-full first:rounded-l-full last:rounded-r-full"
               style={{
                 backgroundColor: activity.color,
                 width: `${(activity.duration / totalDuration) * 100}%`,
@@ -296,87 +310,88 @@ export default function CommunityTemplatePage() {
 
         {/* Activities list */}
         <div className="space-y-2">
-          <h2 className="font-semibold text-foreground">Активности</h2>
-          {template.activities.map((activity, index) => (
-            <Card key={index} className="p-3">
-              <div className="flex items-center gap-3">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Расписание
+          </h2>
+          <div className="space-y-1.5">
+            {template.activities.map((activity, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50"
+              >
                 <div
-                  className="w-3 h-3 rounded-full shrink-0"
+                  className="w-2 h-2 rounded-full shrink-0"
                   style={{ backgroundColor: activity.color }}
                 />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground">{activity.name}</p>
-                </div>
-                <span className="text-sm text-muted-foreground shrink-0">
+                <span className="flex-1 text-sm text-foreground truncate">
+                  {activity.name}
+                </span>
+                <span className="text-xs text-muted-foreground shrink-0">
                   {activity.duration} мин
                 </span>
               </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-4 pt-4 border-t border-border">
-          <button
-            onClick={handleLike}
-            disabled={isLikeLoading}
-            className="flex items-center gap-2 text-sm transition-colors disabled:opacity-50"
-          >
-            <Heart
-              className={cn(
-                "h-5 w-5 transition-colors",
-                isLiked ? "fill-red-500 text-red-500" : "text-muted-foreground"
-              )}
-            />
-            <span className={cn(isLiked ? "text-red-500" : "text-muted-foreground")}>
-              {template.likes_count}
-            </span>
-          </button>
-
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Download className="h-4 w-4" />
-            <span>{template.downloads_count}</span>
+            ))}
           </div>
-
-          <button
-            onClick={handleFavorite}
-            className="flex items-center gap-2 text-sm transition-colors"
-          >
-            <Bookmark
-              className={cn(
-                "h-5 w-5 transition-colors",
-                isFavorited ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
-              )}
-            />
-          </button>
         </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleLike}
+              disabled={isLikeLoading}
+              className="flex items-center gap-1.5 text-sm transition-colors disabled:opacity-50"
+            >
+              <Heart
+                className={cn(
+                  "h-5 w-5 transition-all",
+                  isLiked ? "fill-red-500 text-red-500 scale-110" : "text-muted-foreground"
+                )}
+              />
+              <span className={cn("font-medium", isLiked ? "text-red-500" : "text-muted-foreground")}>
+                {template.likes_count}
+              </span>
+            </button>
+
+            <button
+              onClick={handleFavorite}
+              className="flex items-center gap-1.5 text-sm transition-colors"
+            >
+              <Bookmark
+                className={cn(
+                  "h-5 w-5 transition-all",
+                  isFavorited ? "fill-yellow-500 text-yellow-500 scale-110" : "text-muted-foreground"
+                )}
+              />
+            </button>
+
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Download className="h-4 w-4" />
+              <span>{template.downloads_count}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Download button */}
+        <Button
+          onClick={handleDownload}
+          disabled={isDownloading}
+          className="w-full h-12"
+          size="lg"
+        >
+          {isDownloading ? (
+            <>
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              Загрузка...
+            </>
+          ) : (
+            <>
+              <Download className="h-5 w-5 mr-2" />
+              Скачать в мои шаблоны
+            </>
+          )}
+        </Button>
       </main>
-
-      {/* Download button */}
-      <div
-        className="fixed left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t border-border"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
-      >
-        <div className="max-w-md mx-auto">
-          <Button
-            onClick={handleDownload}
-            disabled={isDownloading}
-            className="w-full"
-          >
-            {isDownloading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Загрузка...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                Скачать в мои шаблоны
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
