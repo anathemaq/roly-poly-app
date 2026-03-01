@@ -16,6 +16,7 @@ import { TemplateKataCard } from "@/components/template-kata-card"
 import { Plus, Trash2, ChevronRight, Loader2, Users, FolderOpen, Search } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { FABPortal } from "@/components/fab-portal"
 
 export default function TemplatesScreen() {
   const { templates, deleteTemplate, addTemplate } = useDay()
@@ -123,8 +124,8 @@ export default function TemplatesScreen() {
         </Tabs>
       </div>
 
-      {/* FAB Create Button - only in My tab */}
-      {activeTab === "my" && (
+      {/* FAB Create Button - only in My tab, rendered via portal to escape transform context */}
+      <FABPortal show={activeTab === "my"}>
         <button
           onClick={handleCreateNew}
           className="fixed right-4 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
@@ -132,7 +133,7 @@ export default function TemplatesScreen() {
         >
           <Plus className="h-6 w-6" />
         </button>
-      )}
+      </FABPortal>
 
       {activeTab === "my" ? (
         <>
