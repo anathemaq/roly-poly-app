@@ -125,20 +125,16 @@ export default function TemplatesScreen() {
 
       {activeTab === "my" ? (
         <>
-          {/* Sticky Create Button - only in My tab */}
-          <div
-            className="fixed left-0 right-0 p-4 z-10 bg-gradient-to-t from-background via-background to-transparent"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
+          {/* FAB Create Button - only in My tab */}
+          <button
+            onClick={handleCreateNew}
+            className="fixed right-4 z-10 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}
           >
-            <div className="max-w-md mx-auto">
-              <Button onClick={handleCreateNew} className="w-full flex items-center gap-2 shadow-lg">
-                <Plus className="h-5 w-5" />
-                Создать шаблон
-              </Button>
-            </div>
-          </div>
+            <Plus className="h-6 w-6" />
+          </button>
 
-          <main className="p-4 pb-28 space-y-3">
+          <main className="p-4 space-y-3">
             {templates.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
