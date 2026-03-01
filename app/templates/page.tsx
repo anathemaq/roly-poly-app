@@ -123,17 +123,19 @@ export default function TemplatesScreen() {
         </Tabs>
       </div>
 
+      {/* FAB Create Button - only in My tab */}
+      {activeTab === "my" && (
+        <button
+          onClick={handleCreateNew}
+          className="fixed right-4 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
+
       {activeTab === "my" ? (
         <>
-          {/* FAB Create Button - only in My tab */}
-          <button
-            onClick={handleCreateNew}
-            className="fixed right-4 z-10 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}
-          >
-            <Plus className="h-6 w-6" />
-          </button>
-
           <main className="p-4 space-y-3">
             {templates.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
