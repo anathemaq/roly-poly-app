@@ -28,9 +28,14 @@ export function SidebarMenu() {
   const hasFetched = useRef(false)
 
   const isAuthPage = pathname.startsWith("/auth")
+  
+  // Hide sidebar on template editing and community template pages
+  const isTemplateEditPage = /^\/templates\/[^/]+$/.test(pathname)
+  const isCommunityTemplatePage = /^\/community\/[^/]+$/.test(pathname)
+  const isSidebarHidden = isAuthPage || isTemplateEditPage || isCommunityTemplatePage
 
   useEffect(() => {
-    if (isAuthPage) {
+    if (isSidebarHidden) {
       setIsLoading(false)
       return
     }
@@ -82,9 +87,9 @@ export function SidebarMenu() {
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase, isAuthPage])
+  }, [supabase, isSidebarHidden])
 
-  if (isAuthPage) {
+  if (isSidebarHidden) {
     return null
   }
 

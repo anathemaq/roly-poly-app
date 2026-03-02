@@ -20,9 +20,14 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
   const isHorizontalSwipe = useRef(false)
 
   const isAuthPage = pathname.startsWith("/auth")
+  
+  // Disable swipe gestures on template editing and community template pages
+  const isTemplateEditPage = /^\/templates\/[^/]+$/.test(pathname)
+  const isCommunityTemplatePage = /^\/community\/[^/]+$/.test(pathname)
+  const isSwipeDisabled = isAuthPage || isTemplateEditPage || isCommunityTemplatePage
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (isAuthPage) return
+    if (isSwipeDisabled) return
     
     const touch = e.touches[0]
     touchStartX.current = touch.clientX
@@ -33,10 +38,10 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
     
     // Check if starting from left edge (for opening) or anywhere (for closing when open)
     isEdgeSwipe.current = touch.clientX < EDGE_THRESHOLD || isOpen
-  }, [isOpen, isAuthPage])
+  }, [isOpen, isSwipeDisabled])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (isAuthPage || !isEdgeSwipe.current) return
+    if (isSwipeDisabled || !isEdgeSwipe.current) return
     
     const touch = e.touches[0]
     const deltaX = touch.clientX - touchStartX.current
@@ -72,10 +77,10 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
     }
     
     setDragOffset(newOffset)
-  }, [isOpen, setDragOffset, setIsDragging, isAuthPage])
+  }, [isOpen, setDragOffset, setIsDragging, isSwipeDisabled])
 
   const handleTouchEnd = useCallback(() => {
-    if (isAuthPage || !isDragging) {
+    if (isSwipeDisabled || !isDragging) {
       isEdgeSwipe.current = false
       hasDecidedDirection.current = false
       return
@@ -94,7 +99,7 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
     setIsDragging(false)
     isEdgeSwipe.current = false
     hasDecidedDirection.current = false
-  }, [isDragging, dragOffset, isOpen, setIsOpen, setDragOffset, setIsDragging, isAuthPage])
+  }, [isDragging, dragOffset, isOpen, setIsOpen, setDragOffset, setIsDragging, isSwipeDisabled])
 
   // Calculate content offset
   const getTranslateX = () => {
