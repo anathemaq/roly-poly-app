@@ -20,9 +20,13 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
   const isHorizontalSwipe = useRef(false)
 
   const isAuthPage = pathname.startsWith("/auth")
+  // Disable menu swipe on detail pages where it interferes with content
+  const isDetailPage = pathname.startsWith("/templates/") && pathname !== "/templates" ||
+                       pathname.startsWith("/community/")
+  const disableMenuSwipe = isAuthPage || isDetailPage
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (isAuthPage) return
+    if (disableMenuSwipe) return
     
     const touch = e.touches[0]
     touchStartX.current = touch.clientX
@@ -33,10 +37,10 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
     
     // Check if starting from left edge (for opening) or anywhere (for closing when open)
     isEdgeSwipe.current = touch.clientX < EDGE_THRESHOLD || isOpen
-  }, [isOpen, isAuthPage])
+  }, [isOpen, disableMenuSwipe])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (isAuthPage || !isEdgeSwipe.current) return
+    if (disableMenuSwipe || !isEdgeSwipe.current) return
     
     const touch = e.touches[0]
     const deltaX = touch.clientX - touchStartX.current
@@ -72,10 +76,10 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
     }
     
     setDragOffset(newOffset)
-  }, [isOpen, setDragOffset, setIsDragging, isAuthPage])
+  }, [isOpen, setDragOffset, setIsDragging, disableMenuSwipe])
 
   const handleTouchEnd = useCallback(() => {
-    if (isAuthPage || !isDragging) {
+    if (disableMenuSwipe || !isDragging) {
       isEdgeSwipe.current = false
       hasDecidedDirection.current = false
       return
@@ -94,7 +98,7 @@ export function AppContainer({ children }: { children: React.ReactNode }) {
     setIsDragging(false)
     isEdgeSwipe.current = false
     hasDecidedDirection.current = false
-  }, [isDragging, dragOffset, isOpen, setIsOpen, setDragOffset, setIsDragging, isAuthPage])
+  }, [isDragging, dragOffset, isOpen, setIsOpen, setDragOffset, setIsDragging, disableMenuSwipe])
 
   // Calculate content offset
   const getTranslateX = () => {
