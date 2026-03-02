@@ -41,41 +41,7 @@
   --sidebar-ring: #dc6027;
 }
 
-.dark {
-  /* Dark Theme - Based on specification */
-  --background: #090218; /* Almost black with purple tint */
-  --foreground: #b5a8dc; /* Light lavender */
-  --card: #220c41; /* Dark violet for containers */
-  --card-foreground: #b5a8dc;
-  --popover: #220c41;
-  --popover-foreground: #b5a8dc;
-  --primary: #674bc9; /* Bright violet-blue accent */
-  --primary-foreground: #b5a8dc;
-  --secondary: #452f78; /* Deep purple for dividers */
-  --secondary-foreground: #b5a8dc;
-  --muted: #452f78;
-  --muted-foreground: #7d7099; /* Gray with lilac tone */
-  --accent: #674bc9;
-  --accent-foreground: #b5a8dc;
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: #452f78;
-  --input: #220c41;
-  --ring: #674bc9;
-  --chart-1: #674bc9;
-  --chart-2: #452f78;
-  --chart-3: #7d7099;
-  --chart-4: #b5a8dc;
-  --chart-5: #220c41;
-  --sidebar: #090218;
-  --sidebar-foreground: #b5a8dc;
-  --sidebar-primary: #674bc9;
-  --sidebar-primary-foreground: #b5a8dc;
-  --sidebar-accent: #220c41;
-  --sidebar-accent-foreground: #b5a8dc;
-  --sidebar-border: #452f78;
-  --sidebar-ring: #674bc9;
-}
+/* Dark theme temporarily disabled */
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
